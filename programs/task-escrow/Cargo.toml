@@ -1,0 +1,18 @@
+[package]
+name = "task-escrow"
+version = "0.1.0"
+description = "AgentMesh Task Escrow program placeholder for EPIC-02"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "task_escrow"
+
+[features]
+no-entrypoint = []
+no-idl = []
+cpi = ["no-entrypoint"]
+default = []
+
+[dependencies]
+anchor-lang = { workspace = true }

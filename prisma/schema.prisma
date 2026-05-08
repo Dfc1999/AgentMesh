@@ -1,0 +1,75 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Agent {
+  id              String   @id
+  ownerPubkey     String
+  class           String
+  capabilities    BigInt   @default(0)
+  reputationScore Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  subtasks Subtask[]
+
+  @@map("agents")
+}
+
+model Task {
+  id             String   @id
+  creatorPubkey  String
+  brief          String
+  briefHash      String
+  status         String   @default("pending")
+  budgetLamports BigInt
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  subtasks         Subtask[]
+  optimizerMetrics OptimizerMetric[]
+
+  @@map("tasks")
+}
+
+model Subtask {
+  id                       String   @id
+  taskId                   String
+  parentSubtaskId          String?
+  workerAgentId            String?
+  declaredTier             String?
+  status                   String   @default("pending")
+  allocatedBudgetLamports  BigInt   @default(0)
+  resultHash               String?
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  task          Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  parentSubtask Subtask?  @relation("SubtaskTree", fields: [parentSubtaskId], references: [id])
+  childSubtasks Subtask[] @relation("SubtaskTree")
+  workerAgent   Agent?    @relation(fields: [workerAgentId], references: [id])
+
+  @@map("subtasks")
+}
+
+model OptimizerMetric {
+  id                   String   @id
+  taskId               String?
+  cacheHit             Boolean  @default(false)
+  originalTokens       Int      @default(0)
+  processedTokens      Int      @default(0)
+  reductionPercent     Decimal  @default(0)
+  techniquesApplied    String[]
+  estimatedQualityRisk String   @default("none")
+  latencyMs            Int      @default(0)
+  createdAt            DateTime @default(now())
+
+  task Task? @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  @@map("optimizer_metrics")
+}

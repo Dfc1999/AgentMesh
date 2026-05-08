@@ -1,0 +1,18 @@
+[package]
+name = "reputation-ledger"
+version = "0.1.0"
+description = "AgentMesh Reputation Ledger placeholder for EPIC-02"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "reputation_ledger"
+
+[features]
+no-entrypoint = []
+no-idl = []
+cpi = ["no-entrypoint"]
+default = []
+
+[dependencies]
+anchor-lang = { workspace = true }

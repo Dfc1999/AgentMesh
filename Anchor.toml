@@ -1,0 +1,28 @@
+[toolchain]
+anchor_version = "0.30.1"
+
+[features]
+seeds = false
+skip-lint = false
+
+[programs.localnet]
+agent_registry = "11111111111111111111111111111111"
+task_escrow = "11111111111111111111111111111111"
+consensus = "11111111111111111111111111111111"
+reputation_ledger = "11111111111111111111111111111111"
+
+[programs.devnet]
+agent_registry = "11111111111111111111111111111111"
+task_escrow = "11111111111111111111111111111111"
+consensus = "11111111111111111111111111111111"
+reputation_ledger = "11111111111111111111111111111111"
+
+[registry]
+url = "https://api.apr.dev"
+
+[provider]
+cluster = "Localnet"
+wallet = "~/.config/solana/id.json"
+
+[scripts]
+test = "npm run test"

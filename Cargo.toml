@@ -1,0 +1,11 @@
+[workspace]
+resolver = "2"
+members = [
+    "programs/agent-registry",
+    "programs/task-escrow",
+    "programs/consensus",
+    "programs/reputation-ledger",
+]
+
+[workspace.dependencies]
+anchor-lang = "0.30.1"
