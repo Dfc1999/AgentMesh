@@ -1,0 +1,28 @@
+{
+  "name": "@agentmesh/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
+  "scripts": {
+    "build": "next build",
+    "dev": "next dev -p 3000",
+    "lint": "eslint app --ext .ts,.tsx",
+    "test": "echo \"No tests yet for web\""
+  },
+  "dependencies": {
+    "@agentmesh/sdk": "0.1.0",
+    "next": "^14.2.22",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "typescript": "^5.7.2"
+  }
+}
