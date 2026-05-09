@@ -10,6 +10,8 @@ name = "reputation_ledger"
 
 [features]
 bpf-entrypoint = []
+idl-build = []
+no-idl = []
 default = []
 
 [dependencies]

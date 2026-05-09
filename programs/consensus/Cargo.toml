@@ -11,6 +11,7 @@ name = "consensus"
 [features]
 no-entrypoint = []
 no-idl = []
+idl-build = ["anchor-lang/idl-build", "task-escrow/idl-build"]
 cpi = ["no-entrypoint"]
 default = []
 
