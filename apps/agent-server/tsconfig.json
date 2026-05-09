@@ -8,6 +8,7 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "paths": {
+      "@agentmesh/idl": ["../../packages/idl/src/index.ts"],
       "@agentmesh/shared-types": ["../../packages/shared-types/src/index.ts"]
     }
   },

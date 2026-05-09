@@ -8,4 +8,8 @@ members = [
 ]
 
 [workspace.dependencies]
-anchor-lang = "0.30.1"
+anchor-lang = "0.31.1"
+
+[profile.release]
+overflow-checks = true
+
