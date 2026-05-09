@@ -1,15 +1,27 @@
-import type { RouterDecision, Tier } from "@agentmesh/shared-types";
+export type {
+  DimensionScores,
+  JudgeResult,
+  JudgeVerdict,
+  RouterDecision,
+  Tier,
+  WorkerResponse,
+} from "@agentmesh/shared-types";
 
-export interface WorkerResponse {
-  subtaskPda: string;
-  content: string;
-  resultHash: string;
+import type { DimensionScores, JudgeVerdict, Tier } from "@agentmesh/shared-types";
+
+export interface JudgeThresholds {
+  defaultThreshold: number;
 }
 
-export interface JudgeResult {
-  approved: boolean;
+export interface JudgeEvaluation {
   score: number;
+  dimensions: DimensionScores;
+  reasoning: string;
+}
+
+export interface RetryDecision {
+  verdict: JudgeVerdict;
   retryTier?: Tier;
-  lowConfidence: boolean;
-  routerDecision: RouterDecision;
+  tierWasAccurate: boolean;
+  lowConfidenceReason?: string;
 }

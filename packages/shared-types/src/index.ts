@@ -75,6 +75,41 @@ export interface RouterDecision {
   cachedResponse?: string;
 }
 
+export interface WorkerResponse {
+  content: string;
+  modelId: ModelId;
+  tier: Tier;
+  tokensUsed: number;
+  costLamports: number;
+  originalBrief: string;
+  subtaskId: string;
+  subtaskPda: string;
+  retryCount?: number;
+}
+
+export interface DimensionScores {
+  completeness: number;
+  consistency: number;
+  formatCompliance: number;
+  appropriateConfidence: number;
+}
+
+export type JudgeVerdict = "approved" | "retry" | "low_confidence";
+
+export interface JudgeResult {
+  verdict: JudgeVerdict;
+  score: number;
+  dimensions: DimensionScores;
+  retryTier?: Tier;
+  lowConfidenceReason?: string;
+  finalContent?: string;
+  tierWasAccurate: boolean;
+  subtaskId: string;
+  consensusSignature?: string;
+  retrySignature?: string;
+  tierAccuracySignature?: string;
+}
+
 export interface CompletionMessage {
   role: "system" | "user" | "assistant";
   content: string;
