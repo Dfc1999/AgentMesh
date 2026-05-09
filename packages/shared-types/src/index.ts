@@ -17,6 +17,7 @@ export type QualityRisk = "none" | "low" | "medium" | "high";
 export interface IntentClassification {
   needsDocs: boolean;
   complexityHint: number;
+  skillId?: string;
   skillMatch?: string;
 }
 
@@ -50,15 +51,28 @@ export interface RoutingRules {
   simpleMaxComplexity: number;
   mediumMaxTokens: number;
   mediumMaxComplexity: number;
+  minReputationScore?: number;
+  maxRetries?: number;
 }
+
+export type RouterWarning =
+  | "budget_degraded"
+  | "insufficient_budget"
+  | "cache_hit"
+  | "skill_template_match";
 
 export interface RouterDecision {
   tier: Tier;
   modelId: ModelId;
+  budgetSlice: number;
   budgetSliceLamports: bigint;
+  maxRetryBudget: number;
   subtaskPda: string;
   confidence: number;
-  warnings: string[];
+  reasoning: string;
+  warnings: RouterWarning[];
+  declareTierSignature?: string;
+  cachedResponse?: string;
 }
 
 export interface CompletionMessage {
@@ -85,9 +99,4 @@ export interface CompletionResponse {
   model: ModelId;
 }
 
-export type {
-  AgentRecord,
-  OptimizerMetricRecord,
-  SubtaskRecord,
-  TaskRecord,
-} from "./db";
+export type { AgentRecord, OptimizerMetricRecord, SubtaskRecord, TaskRecord } from "./db";

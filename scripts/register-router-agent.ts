@@ -4,7 +4,7 @@ const ROUTING_CAPABILITY = 1n << 4n;
 
 async function main() {
   const clients = createMockSolanaProgramClients();
-  const router = await clients.agentRegistry.registerAgent({
+  const tx = await clients.agentRegistry.registerAgent({
     capabilities: ROUTING_CAPABILITY,
     supportedTiers: 0,
     pricePerTask: 250_000n,
@@ -19,9 +19,11 @@ async function main() {
     },
   });
 
-  console.log("Seeded mock Router Agent.");
-  console.log(`router registration signature: ${router.signature}`);
-  console.log("Worker/Judge/Optimizer seeds remain reserved for their EPIC owners.");
+  console.log("Router Agent registration prepared.");
+  console.log(`signature: ${tx.signature}`);
+  console.log(
+    "Replace createMockSolanaProgramClients with the generated Anchor client before Devnet registration.",
+  );
 }
 
 main().catch((error) => {
