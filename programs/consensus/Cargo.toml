@@ -16,3 +16,4 @@ default = []
 
 [dependencies]
 anchor-lang = { workspace = true }
+task-escrow = { path = "../task-escrow", features = ["cpi"] }
