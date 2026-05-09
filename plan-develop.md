@@ -147,7 +147,7 @@ Inicializar el monorepo con npm workspaces y Turborepo para gestionar dependenci
 Instalar y versionar todas las herramientas necesarias para desarrollo on-chain.
 
 **Tareas:**
-- [ ] Documentar versiones exactas: Rust 1.75+, Solana CLI 1.18+, Anchor CLI 0.30+
+- [ ] Documentar versiones exactas: Rust 1.89+, Solana CLI 1.18+, Anchor CLI 0.30+
 - [ ] Crear `.tool-versions` (asdf) o `rust-toolchain.toml`
 - [ ] Configurar `Anchor.toml` con `[programs.devnet]` vacíos (se llenarán tras deploy)
 - [ ] Configurar `Cargo.toml` workspace con todos los programas como members

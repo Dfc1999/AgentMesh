@@ -71,7 +71,7 @@ Current Nest files:
 
 - `Anchor.toml` configured for localnet and devnet placeholders.
 - Root Cargo workspace with four program members.
-- Rust toolchain pinned to `1.75.0`.
+- Rust toolchain pinned to `1.89.0` because EPIC-02 uses Pinocchio for `reputation-ledger`.
 - Placeholder Anchor programs:
   - `agent-registry`
   - `task-escrow`
@@ -155,5 +155,5 @@ cargo clippy --workspace --all-targets
 - Keep the module boundaries from `AgentMesh_Arquitectura_Hexagonal.md`: domain imports ports and shared types only.
 - NestJS decorators belong in controllers, Nest modules, or infrastructure providers. Do not put framework decorators in domain classes unless the team intentionally relaxes the hexagonal rule.
 - When adding adapters, keep provider SDKs inside `adapters/` or `shared/` infrastructure, not in module domain code.
-- The `reputation-ledger` program is currently an Anchor placeholder for workspace consistency. The plan says it should become Pinocchio; that migration belongs in EPIC-02.
+- The `reputation-ledger` program is implemented with Pinocchio in EPIC-02, so it does not generate an Anchor IDL. Client serializers/readers should be added in the EPIC-02 integration issue.
 - Program IDs are placeholder system IDs. Replace them after keypair generation or deployment.

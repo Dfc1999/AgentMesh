@@ -579,6 +579,8 @@ cargo clippy --workspace --all-targets
 
 The current environment used for this implementation did not have `cargo`, `anchor`, or `solana` available, so full Anchor validation could not be executed here.
 
+Because `pinocchio v0.11.1` requires `rustc 1.89.0` or newer, the repository Rust toolchain was raised from `1.75.0` to `1.89.0`. If Cargo tries to download `1.75.0`, check that `rust-toolchain.toml` has the updated channel.
+
 ## Risk Notes
 
 - Program IDs are placeholders in `Anchor.toml`; CPI security should be hardened when real deployment IDs exist.

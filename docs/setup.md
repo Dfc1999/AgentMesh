@@ -4,7 +4,7 @@
 
 - Node.js 20+
 - npm 10+
-- Rust 1.75.0, pinned in `rust-toolchain.toml`
+- Rust 1.89.0, pinned in `rust-toolchain.toml`
 - Solana CLI 1.18+
 - Anchor CLI 0.30.1
 - Docker Desktop or a compatible Docker Engine
@@ -56,5 +56,6 @@ Keep `keys/` local. It is ignored by git.
 npm run lint
 npm run build
 anchor build
+cargo test -p reputation-ledger
 cargo clippy --workspace --all-targets
 ```
