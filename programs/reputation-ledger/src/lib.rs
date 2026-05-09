@@ -81,7 +81,7 @@ fn initialize_reputation(
     // The account allocation/funding is intentionally left to the client or
     // future ISSUE-02-07 helpers. Pinocchio keeps this program framework-light;
     // this instruction initializes an already-created PDA account.
-    let mut account_data = reputation.try_borrow_mut_data()?;
+    let mut account_data = reputation.try_borrow_mut()?;
     require_account_len(&account_data, REPUTATION_ACCOUNT_LEN)?;
     account_data.fill(0);
     account_data[OFFSET_DISCRIMINATOR] = DISCRIMINATOR_REPUTATION;
@@ -117,7 +117,7 @@ fn record_outcome(
     }
 
     let clock = Clock::get()?;
-    let mut account_data = reputation.try_borrow_mut_data()?;
+    let mut account_data = reputation.try_borrow_mut()?;
     validate_reputation_account(&account_data, agent.address())?;
 
     let entry_count = read_u8(&account_data, OFFSET_ENTRY_COUNT)? as usize;
@@ -182,7 +182,7 @@ fn record_tier_accuracy(
     let actual_tier_needed = read_tier(data, 1)?;
     let retry_happened = read_bool(data, 2)?;
 
-    let mut account_data = reputation.try_borrow_mut_data()?;
+    let mut account_data = reputation.try_borrow_mut()?;
     validate_reputation_account(&account_data, router_agent.address())?;
 
     let tier_checks = read_u32(&account_data, OFFSET_TIER_CHECKS)?;
@@ -207,7 +207,7 @@ fn query_score(program_id: &Address, accounts: &mut [AccountView]) -> ProgramRes
     let reputation = &accounts[1];
     validate_reputation_account_address(program_id, agent, reputation)?;
 
-    let account_data = reputation.try_borrow_data()?;
+    let account_data = reputation.try_borrow()?;
     validate_reputation_account(&account_data, agent.address())?;
 
     // Pinocchio has no Anchor-style return channel. The current score is kept in
@@ -226,7 +226,7 @@ fn export_credential(program_id: &Address, accounts: &mut [AccountView]) -> Prog
     require_writable(&reputation)?;
     validate_reputation_account_address(program_id, agent, &reputation)?;
 
-    let mut account_data = reputation.try_borrow_mut_data()?;
+    let mut account_data = reputation.try_borrow_mut()?;
     validate_reputation_account(&account_data, agent.address())?;
     let exports = read_u32(&account_data, OFFSET_CREDENTIAL_EXPORTS)?;
     write_u32(&mut account_data, OFFSET_CREDENTIAL_EXPORTS, checked_inc_u32(exports)?)?;
@@ -239,7 +239,7 @@ fn validate_reputation_account_address(
     agent: &AccountView,
     reputation: &AccountView,
 ) -> ProgramResult {
-    let data = reputation.try_borrow_data()?;
+    let data = reputation.try_borrow()?;
     require_account_len(&data, REPUTATION_ACCOUNT_LEN)?;
     let bump = read_u8(&data, OFFSET_BUMP)?;
     drop(data);
