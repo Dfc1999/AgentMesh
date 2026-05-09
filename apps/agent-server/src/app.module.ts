@@ -8,6 +8,7 @@ import { RouterModule } from "./modules/router";
 import { WorkersModule } from "./modules/workers";
 import { X402Module } from "./modules/x402";
 import { LlmModule } from "./shared/llm/llm.module";
+import { EpicTestController } from "./testing/epic-test.controller";
 
 @Module({
   imports: [
@@ -20,6 +21,6 @@ import { LlmModule } from "./shared/llm/llm.module";
     WorkersModule,
     X402Module,
   ],
-  controllers: [HealthController],
+  controllers: [HealthController, EpicTestController],
 })
 export class AppModule {}

@@ -1,0 +1,233 @@
+{
+  "info": {
+    "name": "AgentMesh EPIC 04-05 QA",
+    "description": "Postman smoke and behavior tests for EPIC-04 Router Agent and EPIC-05 Judge Agent using deterministic QA endpoints.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "00 Health",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/health"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('server is healthy', function () {",
+              "  pm.response.to.have.status(200);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "EPIC-04 Router - simple tier",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"query\": {\n    \"content\": \"Resume en una frase el estado del registro de agentes.\",\n    \"intentClassification\": {\n      \"needsDocs\": false,\n      \"complexityHint\": 0.1\n    },\n    \"metrics\": {\n      \"processedTokens\": 20,\n      \"estimatedQualityRisk\": \"low\"\n    }\n  },\n  \"escrowCtx\": {\n    \"remainingBudgetLamports\": 1000000,\n    \"maxRetryBudgetLamports\": 600000\n  }\n}"
+        },
+        "url": "{{baseUrl}}/qa/epic04/router/classify"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.test('router returns simple tier', function () {",
+              "  pm.response.to.have.status(201);",
+              "  pm.expect(body.ok).to.eql(true);",
+              "  pm.expect(body.decision.tier).to.eql('simple');",
+              "  pm.expect(body.decision.modelId).to.eql('claude-haiku-4-5');",
+              "  pm.expect(body.decision.declareTierSignature).to.be.a('string');",
+              "});",
+              "pm.environment.set('routerDecision', JSON.stringify(body.decision));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "EPIC-04 Router - complex tier",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"query\": {\n    \"content\": \"Diseña una arquitectura end-to-end para auditoría de seguridad con documentos, código, investigación y tradeoffs.\",\n    \"intentClassification\": {\n      \"needsDocs\": true,\n      \"complexityHint\": 0.95\n    },\n    \"metrics\": {\n      \"processedTokens\": 1500,\n      \"estimatedQualityRisk\": \"medium\"\n    },\n    \"contextChunks\": [\n      { \"id\": \"doc-1\", \"source\": \"plan\", \"content\": \"EPIC router\", \"score\": 0.9 },\n      { \"id\": \"doc-2\", \"source\": \"contracts\", \"content\": \"tier declaration\", \"score\": 0.88 }\n    ]\n  },\n  \"escrowCtx\": {\n    \"remainingBudgetLamports\": 6000000,\n    \"maxRetryBudgetLamports\": 3000000\n  }\n}"
+        },
+        "url": "{{baseUrl}}/qa/epic04/router/classify"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.test('router escalates complex work', function () {",
+              "  pm.response.to.have.status(201);",
+              "  pm.expect(body.decision.tier).to.eql('complex');",
+              "  pm.expect(body.decision.modelId).to.eql('claude-opus-4-6');",
+              "  pm.expect(body.decision.warnings).to.eql([]);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "EPIC-04 Router - insufficient budget",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"query\": {\n    \"content\": \"Implementa y debuggea un sistema completo con documentos y auditoría security.\",\n    \"intentClassification\": {\n      \"needsDocs\": true,\n      \"complexityHint\": 0.9\n    },\n    \"metrics\": {\n      \"processedTokens\": 900,\n      \"estimatedQualityRisk\": \"high\"\n    }\n  },\n  \"escrowCtx\": {\n    \"remainingBudgetLamports\": 100000,\n    \"maxRetryBudgetLamports\": 0\n  }\n}"
+        },
+        "url": "{{baseUrl}}/qa/epic04/router/classify"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.test('router flags insufficient budget', function () {",
+              "  pm.response.to.have.status(201);",
+              "  pm.expect(body.decision.warnings).to.include('insufficient_budget');",
+              "  pm.expect(body.decision.budgetSliceLamports).to.eql('0');",
+              "  pm.expect(body.decision.declareTierSignature).to.eql(undefined);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "EPIC-05 Judge - approved",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"decision\": {\n    \"tier\": \"simple\",\n    \"modelId\": \"claude-haiku-4-5\",\n    \"budgetSlice\": 1200000,\n    \"budgetSliceLamports\": 1200000,\n    \"maxRetryBudget\": 3000000,\n    \"subtaskPda\": \"SubtaskMockPdaPostmanApproved\",\n    \"confidence\": 0.84,\n    \"reasoning\": \"Simple task routed to haiku.\",\n    \"warnings\": []\n  },\n  \"response\": {\n    \"subtaskId\": \"judge-approved-001\",\n    \"originalBrief\": \"Genera una lista de pasos para registrar un Router Agent y validar que declare el tier correcto.\",\n    \"content\": \"1. Registrar el Router Agent en Agent Registry.\\n2. Leer routing rules.\\n3. Declarar el tier en Task Escrow.\\n4. Validar la firma y entregar al worker correcto.\",\n    \"retryCount\": 0\n  }\n}"
+        },
+        "url": "{{baseUrl}}/qa/epic05/judge/evaluate"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.test('judge approves good response', function () {",
+              "  pm.response.to.have.status(201);",
+              "  pm.expect(body.result.verdict).to.eql('approved');",
+              "  pm.expect(body.result.score).to.be.above(0.75);",
+              "  pm.expect(body.result.consensusSignature).to.be.a('string');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "EPIC-05 Judge - retry",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"decision\": {\n    \"tier\": \"simple\",\n    \"modelId\": \"claude-haiku-4-5\",\n    \"budgetSlice\": 1200000,\n    \"budgetSliceLamports\": 1200000,\n    \"maxRetryBudget\": 3000000,\n    \"subtaskPda\": \"SubtaskMockPdaPostmanRetry\",\n    \"confidence\": 0.84,\n    \"reasoning\": \"Simple task routed to haiku.\",\n    \"warnings\": []\n  },\n  \"response\": {\n    \"subtaskId\": \"judge-retry-001\",\n    \"originalBrief\": \"Genera una lista de pasos para registrar un Router Agent y validar que declare el tier correcto.\",\n    \"content\": \"N/A TODO lorem\",\n    \"retryCount\": 0\n  }\n}"
+        },
+        "url": "{{baseUrl}}/qa/epic05/judge/evaluate"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.test('judge requests one retry when budget allows', function () {",
+              "  pm.response.to.have.status(201);",
+              "  pm.expect(body.result.verdict).to.eql('retry');",
+              "  pm.expect(body.result.retryTier).to.eql('medium');",
+              "  pm.expect(body.result.retrySignature).to.be.a('string');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "EPIC-05 Judge - low confidence",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"decision\": {\n    \"tier\": \"simple\",\n    \"modelId\": \"claude-haiku-4-5\",\n    \"budgetSlice\": 1200000,\n    \"budgetSliceLamports\": 1200000,\n    \"maxRetryBudget\": 100,\n    \"subtaskPda\": \"SubtaskMockPdaPostmanLowConfidence\",\n    \"confidence\": 0.84,\n    \"reasoning\": \"Simple task routed to haiku with no retry budget.\",\n    \"warnings\": []\n  },\n  \"response\": {\n    \"subtaskId\": \"judge-low-confidence-001\",\n    \"originalBrief\": \"Genera una lista de pasos para registrar un Router Agent y validar que declare el tier correcto.\",\n    \"content\": \"N/A TODO lorem\",\n    \"retryCount\": 0\n  }\n}"
+        },
+        "url": "{{baseUrl}}/qa/epic05/judge/evaluate"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.test('judge returns low confidence without retry budget', function () {",
+              "  pm.response.to.have.status(201);",
+              "  pm.expect(body.result.verdict).to.eql('low_confidence');",
+              "  pm.expect(body.result.lowConfidenceReason).to.be.a('string');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    },
+    {
+      "name": "EPIC-04 + EPIC-05 Flow - route then judge",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"query\": {\n    \"content\": \"Genera una lista de pasos para registrar un Router Agent y validar que declare el tier correcto.\",\n    \"intentClassification\": {\n      \"needsDocs\": false,\n      \"complexityHint\": 0.42\n    },\n    \"metrics\": {\n      \"processedTokens\": 90,\n      \"estimatedQualityRisk\": \"low\"\n    }\n  },\n  \"escrowCtx\": {\n    \"remainingBudgetLamports\": 6000000,\n    \"maxRetryBudgetLamports\": 3000000\n  },\n  \"workerResponse\": {\n    \"subtaskId\": \"flow-postman-001\",\n    \"content\": \"1. Genera la solicitud normalizada para registrar el Router Agent en Agent Registry.\\n2. Crear o actualizar las routing rules del Router Agent.\\n3. Validar que el Router Agent declare el tier correcto en Task Escrow.\\n4. Confirmar la firma de declareTier y enviar el subtask al worker correcto.\\n5. Guardar el resultado para auditoría del flujo Router + Judge.\",\n    \"retryCount\": 0\n  }\n}"
+        },
+        "url": "{{baseUrl}}/qa/epic04-05/flow"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.test('router and judge work together', function () {",
+              "  pm.response.to.have.status(201);",
+              "  pm.expect(body.decision.tier).to.be.oneOf(['simple', 'medium', 'complex']);",
+              "  pm.expect(body.result.verdict).to.eql('approved');",
+              "  pm.expect(body.result.subtaskId).to.eql('flow-postman-001');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ]
+    }
+  ]
+}
