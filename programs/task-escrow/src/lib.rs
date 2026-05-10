@@ -1,7 +1,7 @@
 #![deny(clippy::all)]
+#![allow(deprecated)]
 
 use anchor_lang::prelude::*;
-use anchor_lang::solana_program::system_instruction;
 
 declare_id!("11111111111111111111111111111111");
 
@@ -35,19 +35,15 @@ pub mod task_escrow {
         task.timeout_slots = timeout_slots;
         task.bump = ctx.bumps.task;
 
-        let ix = system_instruction::transfer(
-            &ctx.accounts.creator.key(),
-            &ctx.accounts.task_vault.key(),
-            budget,
+        let transfer_accounts = anchor_lang::system_program::Transfer {
+            from: ctx.accounts.creator.to_account_info(),
+            to: ctx.accounts.task_vault.to_account_info(),
+        };
+        let transfer_ctx = CpiContext::new(
+            ctx.accounts.system_program.to_account_info(),
+            transfer_accounts,
         );
-        anchor_lang::solana_program::program::invoke(
-            &ix,
-            &[
-                ctx.accounts.creator.to_account_info(),
-                ctx.accounts.task_vault.to_account_info(),
-                ctx.accounts.system_program.to_account_info(),
-            ],
-        )?;
+        anchor_lang::system_program::transfer(transfer_ctx, budget)?;
 
         emit!(TaskCreated {
             task: task.key(),

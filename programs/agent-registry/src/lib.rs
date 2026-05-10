@@ -1,4 +1,5 @@
 #![deny(clippy::all)]
+#![allow(deprecated)]
 
 use anchor_lang::prelude::*;
 

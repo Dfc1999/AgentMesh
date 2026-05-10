@@ -1,4 +1,5 @@
 #![deny(clippy::all)]
+#![allow(deprecated)]
 
 use anchor_lang::prelude::*;
 use task_escrow::program::TaskEscrow;
