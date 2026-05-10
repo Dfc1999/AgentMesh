@@ -110,6 +110,7 @@ export interface AllocateSubtaskInput {
 export interface TaskEscrowClient {
   allocateSubtask(input: AllocateSubtaskInput): Promise<PendingTransaction>;
   declareTier(input: DeclareTierInput): Promise<PendingTransaction>;
+  submitResult(input: { subtaskPda: string; resultHash: string }): Promise<PendingTransaction>;
   retrySubtask(input: RetrySubtaskInput): Promise<PendingTransaction>;
   releaseOrchestratorFee(taskPda: string): Promise<PendingTransaction>;
 }
@@ -178,6 +179,7 @@ export function createMockSolanaProgramClients(): SolanaProgramClients {
     taskEscrow: {
       allocateSubtask: async () => mockSignature("allocateSubtask"),
       declareTier: async () => mockSignature("declareTier"),
+      submitResult: async () => mockSignature("submitResult"),
       retrySubtask: async () => mockSignature("retrySubtask"),
       releaseOrchestratorFee: async () => mockSignature("releaseOrchestratorFee"),
     },

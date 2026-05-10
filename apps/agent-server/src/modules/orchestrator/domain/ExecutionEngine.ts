@@ -105,11 +105,13 @@ export class ExecutionEngine {
       subtaskId: subtask.id,
       subtaskPda,
       workerAgentPda: worker.agentPda,
+      kind: workerKindFor(subtask.requiredCapabilities),
       prompt: optimizedQuery.content,
       originalBrief: task.brief,
       tier: routerDecision.tier,
       modelId: routerDecision.modelId,
       budgetLamports: routerDecision.budgetSliceLamports,
+      requiredCapabilities: subtask.capabilityMask,
     });
     const firstJudge = await this.judge.evaluate(
       toWorkerResponse(task, subtask.id, firstAttempt, routerDecision, 0),
@@ -158,11 +160,14 @@ export class ExecutionEngine {
       subtaskId: input.subtask.id,
       subtaskPda: input.firstDecision.subtaskPda,
       workerAgentPda: input.worker.agentPda,
+      kind: workerKindFor(input.subtask.requiredCapabilities),
       prompt: input.optimizedQuery.content,
       originalBrief: input.task.brief,
       tier: input.firstJudge.retryTier ?? input.firstDecision.tier,
       modelId: input.firstDecision.modelId,
       budgetLamports: BigInt(input.firstDecision.maxRetryBudget),
+      requiredCapabilities: input.subtask.capabilityMask,
+      producerAgentPda: input.worker.agentPda,
     });
     const retryJudge = await this.judge.evaluate(
       toWorkerResponse(input.task, input.subtask.id, retryResult, input.firstDecision, 1),
@@ -206,6 +211,19 @@ export class ExecutionEngine {
       finishedAt: new Date().toISOString(),
     };
   }
+}
+
+function workerKindFor(capabilities: string[]): "researcher" | "analyzer" | "executor" | "validator" {
+  if (capabilities.includes("validation")) {
+    return "validator";
+  }
+  if (capabilities.includes("execution") || capabilities.includes("defi")) {
+    return "executor";
+  }
+  if (capabilities.includes("research")) {
+    return "researcher";
+  }
+  return "analyzer";
 }
 
 function toWorkerResponse(

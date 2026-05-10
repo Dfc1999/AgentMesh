@@ -22,6 +22,7 @@
     "eval:router": "tsx scripts/eval-router.ts",
     "eval:judge": "tsx scripts/eval-judge.ts",
     "eval:orchestrator": "tsx scripts/eval-orchestrator.ts",
+    "eval:workers": "tsx scripts/eval-workers.ts",
     "test": "turbo run test",
     "prepare": "husky"
   },

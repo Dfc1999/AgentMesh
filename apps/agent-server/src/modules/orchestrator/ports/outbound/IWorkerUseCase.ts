@@ -1,14 +1,18 @@
 import type { ModelId, Tier } from "@agentmesh/shared-types";
+import type { WorkerKind } from "../../../workers";
 
 export interface WorkerTask {
   subtaskId: string;
   subtaskPda: string;
   workerAgentPda: string;
+  kind?: WorkerKind;
   prompt: string;
   originalBrief: string;
   tier: Tier;
   modelId: ModelId;
   budgetLamports: bigint;
+  requiredCapabilities?: bigint;
+  producerAgentPda?: string;
 }
 
 export interface WorkerResult {
@@ -18,6 +22,7 @@ export interface WorkerResult {
   resultHash: string;
   tokensUsed: number;
   costLamports: number;
+  workerAgentPda?: string;
 }
 
 export interface IWorkerUseCase {

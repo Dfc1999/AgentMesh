@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { JUDGE_USE_CASE, JudgeModule } from "../judge";
 import { OPTIMIZER_USE_CASE, OptimizerModule } from "../optimizer";
 import { ROUTER_USE_CASE, RouterModule } from "../router";
+import { WORKER_USE_CASE, WorkersModule } from "../workers";
 import { LLM_CLIENT_FACTORY } from "../../shared/llm/llm.module";
 import type { LLMClientFactory } from "../../shared/llm/LLMClientFactory";
 import {
@@ -10,7 +11,6 @@ import {
 } from "../../shared/solana/programs";
 import { OrchestratorController } from "./adapters/inbound/OrchestratorController";
 import { InMemoryTaskRepository } from "./adapters/outbound/InMemoryTaskRepository";
-import { LocalWorkerAdapter } from "./adapters/outbound/LocalWorkerAdapter";
 import { NoopSolanaEventsAdapter } from "./adapters/outbound/NoopSolanaEventsAdapter";
 import { OrchestratorLlmAdapter } from "./adapters/outbound/OrchestratorLlmAdapter";
 import { SolanaAgentRegistryAdapter } from "./adapters/outbound/SolanaAgentRegistryAdapter";
@@ -43,7 +43,7 @@ export const ORCHESTRATOR_TIMEOUT_POLICY = Symbol("ORCHESTRATOR_TIMEOUT_POLICY")
 export const ORCHESTRATOR_SOLANA_CLIENTS = Symbol("ORCHESTRATOR_SOLANA_CLIENTS");
 
 @Module({
-  imports: [OptimizerModule, RouterModule, JudgeModule],
+  imports: [OptimizerModule, RouterModule, JudgeModule, WorkersModule],
   controllers: [OrchestratorController],
   providers: [
     {
@@ -95,7 +95,8 @@ export const ORCHESTRATOR_SOLANA_CLIENTS = Symbol("ORCHESTRATOR_SOLANA_CLIENTS")
     },
     {
       provide: ORCHESTRATOR_WORKER,
-      useFactory: () => new LocalWorkerAdapter(),
+      inject: [WORKER_USE_CASE],
+      useFactory: (worker: IWorkerUseCase) => worker,
     },
     {
       provide: TaskDecomposer,
