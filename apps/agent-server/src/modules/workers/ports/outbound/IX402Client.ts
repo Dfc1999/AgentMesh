@@ -6,5 +6,9 @@ export interface X402FetchResult {
 }
 
 export interface IX402Client {
-  fetch(url: string, walletKeypairPath?: string): Promise<X402FetchResult>;
+  fetch(
+    url: string,
+    walletKeypairPath?: string,
+    context?: { agentId?: string; subtaskId?: string; maxPriceLamports?: bigint },
+  ): Promise<X402FetchResult>;
 }

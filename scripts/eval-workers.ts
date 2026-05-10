@@ -13,6 +13,11 @@ import { ResearcherService } from "../apps/agent-server/src/modules/workers/doma
 import { ValidatorService } from "../apps/agent-server/src/modules/workers/domain/validator/ValidatorService";
 import { WorkerRegistryService } from "../apps/agent-server/src/modules/workers/domain/WorkerRegistryService";
 import type { IWorkerLlm } from "../apps/agent-server/src/modules/workers/ports/outbound/IWorkerLlm";
+import type {
+  IX402ClientUseCase,
+  X402PaymentRequest,
+  X402PaymentResult,
+} from "../apps/agent-server/src/modules/x402";
 import type { CompletionRequest, CompletionResponse } from "../packages/shared-types/src";
 
 async function main() {
@@ -26,7 +31,7 @@ async function main() {
       escrow,
       llm,
       new DeterministicWebSearchAdapter(),
-      new X402ClientAdapter(),
+      new X402ClientAdapter(new EvalX402Client()),
       python,
       "workers-py/researcher/researcher.py",
     ),
@@ -38,8 +43,7 @@ async function main() {
   const tasks = [
     {
       kind: "researcher" as const,
-      requiredCapabilities:
-        WORKER_CAPABILITIES.RESEARCH | WORKER_CAPABILITIES.WEB_SEARCH,
+      requiredCapabilities: WORKER_CAPABILITIES.RESEARCH | WORKER_CAPABILITIES.WEB_SEARCH,
       prompt: "Research the AgentMesh worker market.",
     },
     {
@@ -102,6 +106,17 @@ class EvalWorkerLlm implements IWorkerLlm {
       latencyMs: 1,
       provider: "mock",
       model: req.model,
+    };
+  }
+}
+
+class EvalX402Client implements IX402ClientUseCase {
+  async fetchWithPayment(request: X402PaymentRequest): Promise<X402PaymentResult> {
+    return {
+      paid: true,
+      signature: `eval-x402-${request.agentId}-${request.subtaskId ?? "subtask"}`,
+      responseStatus: 200,
+      responseBody: "Eval paid data response.",
     };
   }
 }

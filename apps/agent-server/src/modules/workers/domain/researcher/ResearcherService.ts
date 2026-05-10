@@ -1,6 +1,10 @@
 import type { ModelId } from "@agentmesh/shared-types";
 import { BaseWorkerService } from "../base/BaseWorkerService";
-import { WORKER_CAPABILITIES, type StructuredWorkerOutput, type SubtaskContext } from "../base/types";
+import {
+  WORKER_CAPABILITIES,
+  type StructuredWorkerOutput,
+  type SubtaskContext,
+} from "../base/types";
 import type { ITaskEscrow } from "../../ports/outbound/ITaskEscrow";
 import type { IWorkerLlm } from "../../ports/outbound/IWorkerLlm";
 import type { IPythonSubprocess } from "../../ports/outbound/IPythonSubprocess";
@@ -29,7 +33,15 @@ export class ResearcherService extends BaseWorkerService {
 
   protected async perform(subtask: SubtaskContext): Promise<StructuredWorkerOutput> {
     const searchResults = await this.webSearch.search(subtask.prompt);
-    const paidData = await this.x402.fetch("https://api.agentmesh.local/research-context", subtask.walletKeypairPath);
+    const paidData = await this.x402.fetch(
+      "https://api.agentmesh.local/research-context",
+      subtask.walletKeypairPath,
+      {
+        agentId: this.agentPda,
+        subtaskId: subtask.subtaskId,
+        maxPriceLamports: subtask.budgetLamports / 20n,
+      },
+    );
     const pythonResult = await this.python
       .run<
         { prompt: string; searchResults: typeof searchResults; paidData: string },

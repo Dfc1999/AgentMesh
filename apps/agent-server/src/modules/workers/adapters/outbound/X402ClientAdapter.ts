@@ -1,12 +1,28 @@
+import type { IX402ClientUseCase } from "../../../x402";
 import type { IX402Client, X402FetchResult } from "../../ports/outbound/IX402Client";
 
 export class X402ClientAdapter implements IX402Client {
-  async fetch(url: string): Promise<X402FetchResult> {
+  constructor(private readonly client: IX402ClientUseCase) {}
+
+  async fetch(
+    url: string,
+    walletKeypairPath?: string,
+    context: { agentId?: string; subtaskId?: string; maxPriceLamports?: bigint } = {},
+  ): Promise<X402FetchResult> {
+    const result = await this.client.fetchWithPayment({
+      url,
+      method: "GET",
+      maxPriceLamports: context.maxPriceLamports ?? 100_000n,
+      agentId: context.agentId ?? "researcher",
+      walletKeypairPath,
+      subtaskId: context.subtaskId,
+    });
+
     return {
       url,
-      status: 200,
-      body: "x402 payment client placeholder response. EPIC-08 will replace this adapter with real paid HTTP requests.",
-      paymentSignature: "pending_x402_epic08",
+      status: result.responseStatus,
+      body: result.responseBody ?? "",
+      paymentSignature: result.signature,
     };
   }
 }

@@ -1,5 +1,6 @@
 import { join } from "node:path";
 import { Module } from "@nestjs/common";
+import { X402_CLIENT_USE_CASE, X402Module, type IX402ClientUseCase } from "../x402";
 import { LLM_CLIENT_FACTORY } from "../../shared/llm/llm.module";
 import type { LLMClientFactory } from "../../shared/llm/LLMClientFactory";
 import {
@@ -42,6 +43,7 @@ export const WORKER_JUPITER = Symbol("WORKER_JUPITER");
 export const WORKER_SOLANA_CLIENTS = Symbol("WORKER_SOLANA_CLIENTS");
 
 @Module({
+  imports: [X402Module],
   controllers: [WorkerController],
   providers: [
     {
@@ -62,12 +64,12 @@ export const WORKER_SOLANA_CLIENTS = Symbol("WORKER_SOLANA_CLIENTS");
     {
       provide: WORKER_CONSENSUS,
       inject: [WORKER_SOLANA_CLIENTS],
-      useFactory: (clients: SolanaProgramClients) =>
-        new SolanaConsensusAdapter(clients.consensus),
+      useFactory: (clients: SolanaProgramClients) => new SolanaConsensusAdapter(clients.consensus),
     },
     {
       provide: WORKER_X402,
-      useFactory: () => new X402ClientAdapter(),
+      inject: [X402_CLIENT_USE_CASE],
+      useFactory: (x402: IX402ClientUseCase) => new X402ClientAdapter(x402),
     },
     {
       provide: WORKER_WEB_SEARCH,
@@ -118,11 +120,8 @@ export const WORKER_SOLANA_CLIENTS = Symbol("WORKER_SOLANA_CLIENTS");
     {
       provide: ExecutorService,
       inject: [WORKER_TASK_ESCROW, WORKER_PYTH_ORACLE, WORKER_JUPITER],
-      useFactory: (
-        taskEscrow: ITaskEscrow,
-        pyth: IPythOracleClient,
-        jupiter: IJupiterClient,
-      ) => new ExecutorService(taskEscrow, pyth, jupiter),
+      useFactory: (taskEscrow: ITaskEscrow, pyth: IPythOracleClient, jupiter: IJupiterClient) =>
+        new ExecutorService(taskEscrow, pyth, jupiter),
     },
     {
       provide: ValidatorService,
