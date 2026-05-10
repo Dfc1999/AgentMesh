@@ -77,12 +77,33 @@ export interface DeclareTierInput {
   budgetSliceLamports: bigint;
 }
 
+export interface RetrySubtaskInput {
+  subtaskPda: string;
+  newTier: Tier;
+  newWorker?: string;
+}
+
 export interface TaskEscrowClient {
   declareTier(input: DeclareTierInput): Promise<PendingTransaction>;
+  retrySubtask(input: RetrySubtaskInput): Promise<PendingTransaction>;
+}
+
+export interface ConsensusClient {
+  submitValidation(input: {
+    subtaskPda: string;
+    approved: boolean;
+    justificationHash: Buffer;
+  }): Promise<PendingTransaction>;
+  initializeConsensus(input: {
+    subtaskPda: string;
+    requiredSigs: number;
+    validators: string[];
+  }): Promise<PendingTransaction>;
 }
 
 export interface SolanaProgramClients {
   agentRegistry: AgentRegistryClient;
+  consensus: ConsensusClient;
   reputationLedger: ReputationLedgerClient;
   taskEscrow: TaskEscrowClient;
 }
@@ -101,6 +122,10 @@ export function createMockSolanaProgramClients(): SolanaProgramClients {
         maxRetries: 1,
       }),
     },
+    consensus: {
+      submitValidation: async () => mockSignature("submitValidation"),
+      initializeConsensus: async () => mockSignature("initializeConsensus"),
+    },
     reputationLedger: {
       recordOutcome: async () => mockSignature("recordOutcome"),
       recordTierAccuracy: async () => mockSignature("recordTierAccuracy"),
@@ -108,6 +133,7 @@ export function createMockSolanaProgramClients(): SolanaProgramClients {
     },
     taskEscrow: {
       declareTier: async () => mockSignature("declareTier"),
+      retrySubtask: async () => mockSignature("retrySubtask"),
     },
   };
 }

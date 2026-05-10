@@ -20,6 +20,7 @@
     "format:check": "prettier --check .",
     "eval:optimizer": "tsx scripts/eval-optimizer.ts",
     "eval:router": "tsx scripts/eval-router.ts",
+    "eval:judge": "tsx scripts/eval-judge.ts",
     "test": "turbo run test",
     "prepare": "husky"
   },
