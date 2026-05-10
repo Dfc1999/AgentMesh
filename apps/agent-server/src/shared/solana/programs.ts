@@ -50,6 +50,20 @@ export interface PendingTransaction {
 export interface AgentRegistryClient {
   registerAgent(params: RegisterAgentParams): Promise<PendingTransaction>;
   getAgentsByCapability(capabilityMask: bigint): Promise<string[]>;
+  getAgentCandidatesByCapability?(
+    capabilityMask: bigint,
+    minReputation: number,
+  ): Promise<
+    Array<{
+      agentPda: string;
+      ownerPubkey?: string;
+      reputationScore: number;
+      pricePerTaskLamports: bigint;
+      capabilities: string[];
+      capabilityMask: bigint;
+      isLocal: boolean;
+    }>
+  >;
   getRoutingRules(agentPda: string): Promise<RoutingRules>;
 }
 
@@ -83,9 +97,21 @@ export interface RetrySubtaskInput {
   newWorker?: string;
 }
 
+export interface AllocateSubtaskInput {
+  taskPda: string;
+  subtaskPda: string;
+  index: number;
+  parentSubtaskPda?: string;
+  budgetLamports: bigint;
+  maxRetryBudgetLamports: bigint;
+  estimatedTier: Tier;
+}
+
 export interface TaskEscrowClient {
+  allocateSubtask(input: AllocateSubtaskInput): Promise<PendingTransaction>;
   declareTier(input: DeclareTierInput): Promise<PendingTransaction>;
   retrySubtask(input: RetrySubtaskInput): Promise<PendingTransaction>;
+  releaseOrchestratorFee(taskPda: string): Promise<PendingTransaction>;
 }
 
 export interface ConsensusClient {
@@ -112,7 +138,25 @@ export function createMockSolanaProgramClients(): SolanaProgramClients {
   return {
     agentRegistry: {
       registerAgent: async () => mockSignature("registerAgent"),
-      getAgentsByCapability: async () => [],
+      getAgentsByCapability: async () => ["LocalWorkerResearch", "LocalWorkerAnalysis"],
+      getAgentCandidatesByCapability: async (capabilityMask) => [
+        {
+          agentPda: "LocalWorkerResearch",
+          reputationScore: 40,
+          pricePerTaskLamports: 500_000n,
+          capabilities: ["research", "analysis", "summarization"],
+          capabilityMask,
+          isLocal: true,
+        },
+        {
+          agentPda: "LocalWorkerValidator",
+          reputationScore: 35,
+          pricePerTaskLamports: 450_000n,
+          capabilities: ["validation", "analysis"],
+          capabilityMask,
+          isLocal: true,
+        },
+      ],
       getRoutingRules: async () => ({
         simpleMaxTokens: 50,
         simpleMaxComplexity: 0.3,
@@ -132,8 +176,10 @@ export function createMockSolanaProgramClients(): SolanaProgramClients {
       queryScore: async () => 0,
     },
     taskEscrow: {
+      allocateSubtask: async () => mockSignature("allocateSubtask"),
       declareTier: async () => mockSignature("declareTier"),
       retrySubtask: async () => mockSignature("retrySubtask"),
+      releaseOrchestratorFee: async () => mockSignature("releaseOrchestratorFee"),
     },
   };
 }
