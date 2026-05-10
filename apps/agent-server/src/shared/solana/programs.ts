@@ -8,6 +8,7 @@ import {
   type ReputationLedger,
   type Tier,
 } from "@agentmesh/idl";
+import type { ModelId, RoutingRules } from "@agentmesh/shared-types";
 
 export interface ProgramLike<TIdl> {
   idl: TIdl;
@@ -49,6 +50,7 @@ export interface PendingTransaction {
 export interface AgentRegistryClient {
   registerAgent(params: RegisterAgentParams): Promise<PendingTransaction>;
   getAgentsByCapability(capabilityMask: bigint): Promise<string[]>;
+  getRoutingRules(agentPda: string): Promise<RoutingRules>;
 }
 
 export interface ReputationLedgerClient {
@@ -68,9 +70,21 @@ export interface ReputationLedgerClient {
   queryScore(agent: string): Promise<number>;
 }
 
+export interface DeclareTierInput {
+  subtaskPda: string;
+  tier: Tier;
+  modelId: ModelId;
+  budgetSliceLamports: bigint;
+}
+
+export interface TaskEscrowClient {
+  declareTier(input: DeclareTierInput): Promise<PendingTransaction>;
+}
+
 export interface SolanaProgramClients {
   agentRegistry: AgentRegistryClient;
   reputationLedger: ReputationLedgerClient;
+  taskEscrow: TaskEscrowClient;
 }
 
 export function createMockSolanaProgramClients(): SolanaProgramClients {
@@ -78,11 +92,22 @@ export function createMockSolanaProgramClients(): SolanaProgramClients {
     agentRegistry: {
       registerAgent: async () => mockSignature("registerAgent"),
       getAgentsByCapability: async () => [],
+      getRoutingRules: async () => ({
+        simpleMaxTokens: 50,
+        simpleMaxComplexity: 0.3,
+        mediumMaxTokens: 500,
+        mediumMaxComplexity: 0.7,
+        minReputationScore: -50,
+        maxRetries: 1,
+      }),
     },
     reputationLedger: {
       recordOutcome: async () => mockSignature("recordOutcome"),
       recordTierAccuracy: async () => mockSignature("recordTierAccuracy"),
       queryScore: async () => 0,
+    },
+    taskEscrow: {
+      declareTier: async () => mockSignature("declareTier"),
     },
   };
 }

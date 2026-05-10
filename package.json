@@ -19,6 +19,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "eval:optimizer": "tsx scripts/eval-optimizer.ts",
+    "eval:router": "tsx scripts/eval-router.ts",
     "test": "turbo run test",
     "prepare": "husky"
   },
