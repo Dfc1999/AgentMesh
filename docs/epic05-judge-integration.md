@@ -17,7 +17,7 @@ Both contracts live in `@agentmesh/shared-types`.
 
 The domain service is wired through ports:
 
-- `IJudgeLlm`: calls `claude-sonnet-4-6` for quality evaluation.
+- `IJudgeLlm`: calls the configured AgentMesh quality model. The default profile uses `gemini-2.5-flash-lite`; the Azure profile routes to GPT deployments.
 - `IConsensus`: submits approved validations.
 - `ITaskEscrow`: calls retry when the answer fails and budget allows escalation.
 - `IReputationLedger`: records router tier accuracy.

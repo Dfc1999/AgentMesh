@@ -46,7 +46,7 @@ La implementacion actual deja el pipeline funcional end-to-end con adapters dete
 
 6. `PromptCacheStep`
    - Marca la tecnica de prompt cache y calcula tokens cacheables estimados.
-   - El uso real de Anthropic prefix caching ya existe en `AnthropicProvider` mediante `cacheSystemPrompt`.
+   - El perfil LLM activo usa Gemini por defecto; `cacheSystemPrompt` queda como bandera de contrato para proveedores que soporten caching.
 
 ## Contrato publico
 
@@ -100,27 +100,33 @@ El threshold actual es `0.95`. El fixture inicial tiene 25 queries; antes de usa
 ## Dependencias con epics posteriores
 
 EPIC-04 Router:
+
 - Debe consumir `OptimizedQuery.content`, `intentClassification`, `contextChunks` y `metrics`.
 - Si `cachedResponse` viene definido, Router puede devolver respuesta directa o crear una subtarea minima de auditoria, segun la politica que definan.
 - `skillMatch` en `intentClassification` sirve para ajustar tier, modelo y presupuesto.
 
 EPIC-05 Judge:
+
 - Puede usar `metrics.techniquesApplied` y `estimatedQualityRisk` para elevar el rigor de evaluacion cuando hubo pruning o RAG.
 - Si una respuesta viene de cache o skill exacto, Judge deberia registrar un camino de validacion distinto al de worker LLM.
 
 EPIC-06 Orchestrator:
+
 - Debe llamar primero al Optimizer antes de descomponer o reclutar workers.
 - Debe persistir `OptimizerMetrics` en Postgres cuando se implemente telemetry real.
 
 EPIC-07 Workers:
+
 - Deben recibir `content` y `contextChunks` ya procesados, no la query original sin optimizar.
-- Para prompts Anthropic, deben mantener el prefijo estatico primero y usar `cacheSystemPrompt=true`.
+- Para proveedores con prompt/context caching, deben mantener el prefijo estatico primero y usar `cacheSystemPrompt=true`.
 
 EPIC-11 Observabilidad:
+
 - Reemplazar `NoopOptimizerTelemetry` por un adapter Prometheus/OpenTelemetry.
 - Metricas planeadas: cache hit rate, tokens saved, avg similarity, chunks pruned y latency.
 
 EPIC-12 Testing:
+
 - Agregar suite unitaria del dominio usando los ports mock.
 - Ampliar `representative-queries.json` a 200+ casos y activar el script como gate de CI.
 

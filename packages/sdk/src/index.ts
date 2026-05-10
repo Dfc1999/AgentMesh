@@ -2,15 +2,7 @@ export type AgentClass = "worker" | "router" | "judge" | "optimizer" | "validato
 
 export type Tier = "simple" | "medium" | "complex";
 
-export type ModelId =
-  | "claude-haiku-4-5"
-  | "claude-sonnet-4-6"
-  | "claude-opus-4-6"
-  | "gpt-4.1-mini"
-  | "gpt-4.1"
-  | "gpt-5"
-  | "gemini-flash-2.0"
-  | "gemini-pro-2.5";
+export type ModelId = "gemini-2.5-flash-lite" | "gpt-4.1-mini" | "gpt-4.1" | "gpt-5";
 
 export interface AgentMeshClientConfig {
   apiBaseUrl: string;

@@ -31,7 +31,7 @@ By default it listens on `http://localhost:3001` and exposes `GET /health`.
 
 Copy `.env.example` to `.env.local` and fill provider keys.
 
-- `ANTHROPIC_API_KEY`: Claude provider key.
+- `GEMINI_API_KEY`: Gemini provider key used by the default low-cost model profile.
 - `OPENAI_API_KEY`: OpenAI provider key and embeddings.
 - `GOOGLE_API_KEY`: Gemini provider key.
 - `REDIS_URL`: semantic cache connection string.

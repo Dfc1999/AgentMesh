@@ -13,7 +13,10 @@ import { OrchestratorService } from "../apps/agent-server/src/modules/orchestrat
 import { TaskDecomposer } from "../apps/agent-server/src/modules/orchestrator/domain/TaskDecomposer";
 import { TimeoutManager } from "../apps/agent-server/src/modules/orchestrator/domain/TimeoutManager";
 import { WorkerRecruiter } from "../apps/agent-server/src/modules/orchestrator/domain/WorkerRecruiter";
-import type { OrchestratorConfig, WorkerCandidate } from "../apps/agent-server/src/modules/orchestrator/domain/types";
+import type {
+  OrchestratorConfig,
+  WorkerCandidate,
+} from "../apps/agent-server/src/modules/orchestrator/domain/types";
 import type { IAgentRegistry } from "../apps/agent-server/src/modules/orchestrator/ports/outbound/IAgentRegistry";
 import type { IJudgeUseCase } from "../apps/agent-server/src/modules/orchestrator/ports/outbound/IJudgeUseCase";
 import type { IOptimizerUseCase } from "../apps/agent-server/src/modules/orchestrator/ports/outbound/IOptimizerUseCase";
@@ -125,7 +128,7 @@ class EvalDecomposerLlm implements IOrchestratorLlm {
       cachedTokens: 0,
       latencyMs: 1,
       provider: "mock",
-      model: "claude-sonnet-4-6",
+      model: "gemini-2.5-flash-lite",
     };
   }
 }
@@ -175,11 +178,14 @@ class EvalOptimizer implements IOptimizerUseCase {
 }
 
 class EvalRouter implements IRouterUseCase {
-  async classify(query: OptimizedQuery, escrowCtx: Parameters<IRouterUseCase["classify"]>[1]): Promise<RouterDecision> {
+  async classify(
+    query: OptimizedQuery,
+    escrowCtx: Parameters<IRouterUseCase["classify"]>[1],
+  ): Promise<RouterDecision> {
     const tier = query.intentClassification.complexityHint > 0.5 ? "medium" : "simple";
     return {
       tier,
-      modelId: tier === "medium" ? "claude-sonnet-4-6" : "claude-haiku-4-5",
+      modelId: "gemini-2.5-flash-lite",
       budgetSlice: Number(escrowCtx.remainingBudgetLamports),
       budgetSliceLamports: escrowCtx.remainingBudgetLamports,
       maxRetryBudget: Number(escrowCtx.maxRetryBudgetLamports ?? 0n),

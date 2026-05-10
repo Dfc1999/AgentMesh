@@ -17,7 +17,7 @@ Implemented issues:
 Files added under `apps/agent-server/src/modules/orchestrator`:
 
 - `domain/OrchestratorService.ts`: main use case. Optimizes the task brief, decomposes it, allocates subtasks, executes the DAG, and releases the orchestrator fee when all subtasks complete.
-- `domain/TaskDecomposer.ts`: uses `claude-sonnet-4-6` through the LLM port to produce a JSON subtask tree. If the LLM call fails, it falls back to deterministic decomposition so local development still works.
+- `domain/TaskDecomposer.ts`: uses the configured AgentMesh decomposer model through the LLM port to produce a JSON subtask tree. The default profile uses `gemini-2.5-flash-lite`; if the LLM call fails, it falls back to deterministic decomposition so local development still works.
 - `domain/WorkerRecruiter.ts`: selects eligible workers by capability mask and reputation, then sorts by reputation descending and price ascending.
 - `domain/ExecutionEngine.ts`: performs topological sort and runs every ready dependency level with `Promise.allSettled`.
 - `domain/TimeoutManager.ts`: calculates heartbeat deadlines and detects timed-out running subtasks.

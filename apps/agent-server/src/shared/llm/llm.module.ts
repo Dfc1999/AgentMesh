@@ -13,9 +13,18 @@ export const LLM_CLIENT_FACTORY = Symbol("LLM_CLIENT_FACTORY");
       inject: [ENV],
       useFactory: (env: Env) =>
         new LLMClientFactory({
-          anthropicApiKey: env.ANTHROPIC_API_KEY,
           openAiApiKey: env.OPENAI_API_KEY,
-          googleApiKey: env.GOOGLE_API_KEY,
+          googleApiKey: env.GEMINI_API_KEY ?? env.GOOGLE_API_KEY,
+          azureOpenAi: {
+            apiKey: env.AZURE_OPENAI_API_KEY,
+            endpoint: env.AZURE_OPENAI_ENDPOINT,
+            apiVersion: env.AZURE_OPENAI_API_VERSION,
+            deployments: {
+              gpt41Mini: env.AZURE_OPENAI_DEPLOYMENT_GPT_4_1_MINI,
+              gpt41: env.AZURE_OPENAI_DEPLOYMENT_GPT_4_1,
+              gpt5: env.AZURE_OPENAI_DEPLOYMENT_GPT_5,
+            },
+          },
         }),
     },
   ],

@@ -1,4 +1,5 @@
 import type { ModelId } from "@agentmesh/shared-types";
+import { modelForWorkerTier } from "../../../../shared/llm/modelSelection";
 import { BaseWorkerService } from "../base/BaseWorkerService";
 import {
   WORKER_CAPABILITIES,
@@ -88,5 +89,5 @@ export class ResearcherService extends BaseWorkerService {
 }
 
 function modelForTier(tier: SubtaskContext["tier"]): ModelId {
-  return tier === "simple" ? "claude-haiku-4-5" : "claude-sonnet-4-6";
+  return modelForWorkerTier(tier);
 }

@@ -135,7 +135,7 @@ function taskResponse(taskId: string) {
         },
         routerDecision: {
           tier: "simple",
-          modelId: "claude-haiku-4-5",
+          modelId: "gemini-2.5-flash-lite",
           budgetSliceLamports: "100000",
           confidence: 0.9,
         },

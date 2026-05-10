@@ -17,7 +17,7 @@ cd AgentMesh
 cat > .env <<'EOF'
 NODE_ENV=development
 LOG_LEVEL=debug
-ANTHROPIC_API_KEY=dummy-anthropic
+GEMINI_API_KEY=dummy-gemini
 OPENAI_API_KEY=dummy-openai
 REDIS_URL=redis://localhost:6379
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/agentmesh

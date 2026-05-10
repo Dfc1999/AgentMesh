@@ -1,11 +1,12 @@
 import type { OptimizedQuery, RouterDecision } from "@agentmesh/shared-types";
+import { modelForPurpose } from "../../../shared/llm/modelSelection";
 import { TierClassifier } from "./TierClassifier";
 import type { IAgentRegistry } from "../ports/outbound/IAgentRegistry";
 import type { IRouterLlm } from "../ports/outbound/IRouterLlm";
 import type { ITaskEscrow } from "../ports/outbound/ITaskEscrow";
 import type { EscrowContext, RouterClassification } from "./types";
 
-const ROUTER_MODEL = "claude-haiku-4-5" as const;
+const ROUTER_MODEL = modelForPurpose("router");
 
 export class RouterService {
   constructor(

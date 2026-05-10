@@ -1,9 +1,10 @@
 import type { Tier } from "@agentmesh/shared-types";
+import { modelForPurpose } from "../../../shared/llm/modelSelection";
 import { capabilityMaskFor, inferCapabilities } from "./capabilities";
 import type { DecompositionInput, SubtaskNode, SubtaskTree } from "./types";
 import type { IOrchestratorLlm } from "../ports/outbound/IOrchestratorLlm";
 
-const DECOMPOSER_MODEL = "claude-sonnet-4-6" as const;
+const DECOMPOSER_MODEL = modelForPurpose("orchestrator_decomposer");
 
 export class TaskDecomposer {
   constructor(private readonly llm: IOrchestratorLlm) {}
@@ -45,10 +46,7 @@ export class TaskDecomposer {
     };
   }
 
-  private decomposeWithHeuristics(
-    input: DecompositionInput,
-    availableBudget: bigint,
-  ): SubtaskTree {
+  private decomposeWithHeuristics(input: DecompositionInput, availableBudget: bigint): SubtaskTree {
     const text = input.optimizedBrief.content;
     const complexity = input.optimizedBrief.intentClassification.complexityHint;
     const desiredCount = complexity > 0.72 || text.length > 900 ? 5 : complexity > 0.38 ? 3 : 1;
@@ -80,10 +78,7 @@ export class TaskDecomposer {
       throw new Error("Task decomposition returned no subtasks.");
     }
 
-    const total = tree.subtasks.reduce(
-      (sum, subtask) => sum + subtask.estimatedBudgetLamports,
-      0n,
-    );
+    const total = tree.subtasks.reduce((sum, subtask) => sum + subtask.estimatedBudgetLamports, 0n);
     const scaleBudget = total > availableBudget && total > 0n;
 
     return {
@@ -100,11 +95,10 @@ export class TaskDecomposer {
           ...subtask,
           index,
           id: subtask.id || `subtask-${index + 1}`,
-          estimatedBudgetLamports: budget > 0n ? budget : availableBudget / BigInt(tree.subtasks.length),
+          estimatedBudgetLamports:
+            budget > 0n ? budget : availableBudget / BigInt(tree.subtasks.length),
           maxRetryBudgetLamports:
-            subtask.maxRetryBudgetLamports > 0n
-              ? subtask.maxRetryBudgetLamports
-              : budget / 3n,
+            subtask.maxRetryBudgetLamports > 0n ? subtask.maxRetryBudgetLamports : budget / 3n,
           requiredCapabilities: capabilities,
           capabilityMask: capabilityMaskFor(capabilities),
         };

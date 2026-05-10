@@ -12,12 +12,24 @@ const booleanEnv = z
     return ["true", "1", "yes", "on"].includes(value);
   });
 
+const optionalSecret = z
+  .string()
+  .optional()
+  .transform((value) => (value?.trim() ? value.trim() : undefined));
+
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   LOG_LEVEL: z.string().default("info"),
-  ANTHROPIC_API_KEY: z.string().min(1),
-  OPENAI_API_KEY: z.string().min(1),
-  GOOGLE_API_KEY: z.string().min(1).optional(),
+  OPENAI_API_KEY: optionalSecret,
+  GEMINI_API_KEY: optionalSecret,
+  GOOGLE_API_KEY: optionalSecret,
+  AGENTMESH_MODEL_PROFILE: z.enum(["gemini", "azure"]).default("gemini"),
+  AZURE_OPENAI_API_KEY: optionalSecret,
+  AZURE_OPENAI_ENDPOINT: optionalSecret.pipe(z.string().url().optional()),
+  AZURE_OPENAI_API_VERSION: z.string().min(1).default("2024-10-21"),
+  AZURE_OPENAI_DEPLOYMENT_GPT_4_1_MINI: optionalSecret,
+  AZURE_OPENAI_DEPLOYMENT_GPT_4_1: optionalSecret,
+  AZURE_OPENAI_DEPLOYMENT_GPT_5: optionalSecret,
   REDIS_URL: z.string().url(),
   DATABASE_URL: z.string().min(1),
   SOLANA_RPC_URL: z.string().url(),

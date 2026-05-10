@@ -1,6 +1,11 @@
 import type { ModelId } from "@agentmesh/shared-types";
+import { modelForWorkerTier } from "../../../../shared/llm/modelSelection";
 import { BaseWorkerService } from "../base/BaseWorkerService";
-import { WORKER_CAPABILITIES, type StructuredWorkerOutput, type SubtaskContext } from "../base/types";
+import {
+  WORKER_CAPABILITIES,
+  type StructuredWorkerOutput,
+  type SubtaskContext,
+} from "../base/types";
 import type { ITaskEscrow } from "../../ports/outbound/ITaskEscrow";
 import type { IWorkerLlm } from "../../ports/outbound/IWorkerLlm";
 import type { IPythonSubprocess } from "../../ports/outbound/IPythonSubprocess";
@@ -69,5 +74,5 @@ export class AnalyzerService extends BaseWorkerService {
 }
 
 function modelForTier(tier: SubtaskContext["tier"]): ModelId {
-  return tier === "complex" ? "claude-opus-4-6" : "claude-sonnet-4-6";
+  return modelForWorkerTier(tier);
 }

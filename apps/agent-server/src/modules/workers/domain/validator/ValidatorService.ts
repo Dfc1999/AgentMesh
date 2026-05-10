@@ -1,6 +1,11 @@
 import { createHash } from "node:crypto";
+import { modelForPurpose } from "../../../../shared/llm/modelSelection";
 import { BaseWorkerService } from "../base/BaseWorkerService";
-import { WORKER_CAPABILITIES, type StructuredWorkerOutput, type SubtaskContext } from "../base/types";
+import {
+  WORKER_CAPABILITIES,
+  type StructuredWorkerOutput,
+  type SubtaskContext,
+} from "../base/types";
 import type { IConsensus } from "../../ports/outbound/IConsensus";
 import type { ITaskEscrow } from "../../ports/outbound/ITaskEscrow";
 import type { IWorkerLlm } from "../../ports/outbound/IWorkerLlm";
@@ -27,7 +32,7 @@ export class ValidatorService extends BaseWorkerService {
     }
 
     const response = await this.llm.complete({
-      model: "claude-sonnet-4-6",
+      model: modelForPurpose("validator"),
       messages: [
         {
           role: "user",

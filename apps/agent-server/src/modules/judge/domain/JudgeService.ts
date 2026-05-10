@@ -5,6 +5,7 @@ import type {
   RouterDecision,
   WorkerResponse,
 } from "@agentmesh/shared-types";
+import { modelForPurpose } from "../../../shared/llm/modelSelection";
 import { RetryPolicy } from "./RetryPolicy";
 import { ScoreCalculator, normalizeDimensions } from "./ScoreCalculator";
 import type { IConsensus } from "../ports/outbound/IConsensus";
@@ -14,7 +15,7 @@ import type { IRouterRetry } from "../ports/outbound/IRouterRetry";
 import type { ITaskEscrow } from "../ports/outbound/ITaskEscrow";
 import type { JudgeEvaluation } from "./types";
 
-const JUDGE_MODEL = "claude-sonnet-4-6" as const;
+const JUDGE_MODEL = modelForPurpose("judge");
 const DEFAULT_ROUTER_AGENT = "RouterAgentUnknown";
 
 export class JudgeService {

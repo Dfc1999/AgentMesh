@@ -166,7 +166,7 @@ function deserializeRouterDecision(
 ): RouterDecision {
   return {
     tier: overrides.tier ?? "simple",
-    modelId: overrides.modelId ?? "claude-haiku-4-5",
+    modelId: overrides.modelId ?? "gemini-2.5-flash-lite",
     budgetSlice: Number(overrides.budgetSlice ?? 1_200_000),
     budgetSliceLamports: toBigInt(overrides.budgetSliceLamports ?? 1_200_000),
     maxRetryBudget: Number(overrides.maxRetryBudget ?? 3_000_000),

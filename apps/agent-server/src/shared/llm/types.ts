@@ -11,7 +11,16 @@ export interface LLMClient {
 }
 
 export interface LLMProviderConfig {
-  anthropicApiKey: string;
-  openAiApiKey: string;
+  openAiApiKey?: string;
   googleApiKey?: string;
+  azureOpenAi?: {
+    apiKey?: string;
+    endpoint?: string;
+    apiVersion: string;
+    deployments: {
+      gpt41Mini?: string;
+      gpt41?: string;
+      gpt5?: string;
+    };
+  };
 }

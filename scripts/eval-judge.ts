@@ -118,7 +118,7 @@ function fixture(
     expected,
     response: {
       content,
-      modelId: tier === "simple" ? "claude-haiku-4-5" : "claude-sonnet-4-6",
+      modelId: "gemini-2.5-flash-lite",
       tier,
       tokensUsed: 420,
       costLamports: 700_000,
@@ -128,7 +128,7 @@ function fixture(
     },
     decision: {
       tier,
-      modelId: tier === "simple" ? "claude-haiku-4-5" : "claude-sonnet-4-6",
+      modelId: "gemini-2.5-flash-lite",
       budgetSlice: 1_500_000,
       budgetSliceLamports: 1_500_000n,
       maxRetryBudget,

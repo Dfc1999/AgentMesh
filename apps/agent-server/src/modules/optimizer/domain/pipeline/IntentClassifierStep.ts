@@ -1,4 +1,5 @@
 import type { CompletionResponse } from "@agentmesh/shared-types";
+import { modelForPurpose } from "../../../../shared/llm/modelSelection";
 import type { LLMClient } from "../../../../shared/llm/types";
 import type { OptimizerPipelineState, PipelineStep } from "../types";
 
@@ -12,7 +13,7 @@ export class IntentClassifierStep implements PipelineStep {
 
     try {
       const response = await this.llm.complete({
-        model: "claude-haiku-4-5",
+        model: modelForPurpose("optimizer_intent"),
         maxTokens: 200,
         temperature: 0,
         cacheSystemPrompt: true,
@@ -49,23 +50,48 @@ export class IntentClassifierStep implements PipelineStep {
     const lower = query.toLowerCase();
 
     if (lower.includes("arbitrage") || lower.includes("defi") || lower.includes("liquidity")) {
-      return { intent: "defi_arbitrage", needsDocs: true, complexityHint: 0.8, skillId: "defi-arbitrage" };
+      return {
+        intent: "defi_arbitrage",
+        needsDocs: true,
+        complexityHint: 0.8,
+        skillId: "defi-arbitrage",
+      };
     }
 
     if (lower.includes("code") || lower.includes("pull request") || lower.includes("review")) {
-      return { intent: "code_review", needsDocs: false, complexityHint: 0.55, skillId: "code-review" };
+      return {
+        intent: "code_review",
+        needsDocs: false,
+        complexityHint: 0.55,
+        skillId: "code-review",
+      };
     }
 
     if (lower.includes("market") || lower.includes("competitor") || lower.includes("research")) {
-      return { intent: "market_research", needsDocs: true, complexityHint: 0.65, skillId: "market-research" };
+      return {
+        intent: "market_research",
+        needsDocs: true,
+        complexityHint: 0.65,
+        skillId: "market-research",
+      };
     }
 
     if (lower.includes("summarize") || lower.includes("summary") || lower.includes("resumen")) {
-      return { intent: "text_summary", needsDocs: false, complexityHint: 0.25, skillId: "text-summary" };
+      return {
+        intent: "text_summary",
+        needsDocs: false,
+        complexityHint: 0.25,
+        skillId: "text-summary",
+      };
     }
 
     if (lower.includes("data") || lower.includes("csv") || lower.includes("analysis")) {
-      return { intent: "data_analysis", needsDocs: false, complexityHint: 0.6, skillId: "data-analysis" };
+      return {
+        intent: "data_analysis",
+        needsDocs: false,
+        complexityHint: 0.6,
+        skillId: "data-analysis",
+      };
     }
 
     return { intent: "general", needsDocs: false, complexityHint: 0.45 };

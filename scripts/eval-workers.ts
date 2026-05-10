@@ -73,7 +73,7 @@ async function main() {
       prompt: task.prompt,
       originalBrief: "Evaluate EPIC-07 worker behavior.",
       tier: task.kind === "executor" ? "complex" : "medium",
-      modelId: "claude-sonnet-4-6",
+      modelId: "gemini-2.5-flash-lite",
       budgetLamports: 2_000_000n,
       requiredCapabilities: task.requiredCapabilities,
       producerAgentPda: task.kind === "validator" ? "DifferentWorkerAgent" : undefined,

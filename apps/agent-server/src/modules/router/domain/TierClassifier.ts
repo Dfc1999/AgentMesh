@@ -1,4 +1,5 @@
 import type { ModelId, OptimizedQuery, RoutingRules, Tier } from "@agentmesh/shared-types";
+import { modelForWorkerTier } from "../../../shared/llm/modelSelection";
 import type { RouterClassification, TierResolution } from "./types";
 
 export const DEFAULT_ROUTING_RULES: RoutingRules = {
@@ -11,9 +12,9 @@ export const DEFAULT_ROUTING_RULES: RoutingRules = {
 };
 
 const MODEL_BY_TIER: Record<Tier, ModelId> = {
-  simple: "claude-haiku-4-5",
-  medium: "claude-sonnet-4-6",
-  complex: "claude-opus-4-6",
+  simple: modelForWorkerTier("simple"),
+  medium: modelForWorkerTier("medium"),
+  complex: modelForWorkerTier("complex"),
 };
 
 const MIN_BUDGET_BY_TIER: Record<Tier, bigint> = {
