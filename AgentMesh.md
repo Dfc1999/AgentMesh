@@ -569,7 +569,7 @@ agentmesh/
 
 ### Prerequisitos
 
-- Rust 1.75+
+- Rust 1.89+
 - Solana CLI 1.18+
 - Anchor CLI 0.30+
 - Node.js 20+

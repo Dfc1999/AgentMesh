@@ -11,9 +11,10 @@ name = "consensus"
 [features]
 no-entrypoint = []
 no-idl = []
-idl-build = ["anchor-lang/idl-build"]
+idl-build = ["anchor-lang/idl-build", "task-escrow/idl-build"]
 cpi = ["no-entrypoint"]
 default = []
 
 [dependencies]
 anchor-lang = { workspace = true }
+task-escrow = { path = "../task-escrow", features = ["cpi"] }

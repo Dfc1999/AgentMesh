@@ -1,7 +1,7 @@
 [package]
 name = "reputation-ledger"
 version = "0.1.0"
-description = "AgentMesh Reputation Ledger placeholder for EPIC-02"
+description = "AgentMesh Reputation Ledger Pinocchio program for EPIC-02"
 edition = "2021"
 
 [lib]
@@ -9,11 +9,10 @@ crate-type = ["cdylib", "lib"]
 name = "reputation_ledger"
 
 [features]
-no-entrypoint = []
+bpf-entrypoint = []
+idl-build = []
 no-idl = []
-idl-build = ["anchor-lang/idl-build"]
-cpi = ["no-entrypoint"]
 default = []
 
 [dependencies]
-anchor-lang = { workspace = true, features = ["init-if-needed"] }
+pinocchio = { version = "0.11.1", features = ["cpi"] }

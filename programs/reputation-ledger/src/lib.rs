@@ -1,346 +1,487 @@
 #![deny(clippy::all)]
 
-use anchor_lang::prelude::*;
+use pinocchio::error::ProgramError;
+use pinocchio::sysvars::{clock::Clock, Sysvar};
+use pinocchio::{AccountView, Address, ProgramResult};
 
-declare_id!("11111111111111111111111111111111");
+#[cfg(feature = "bpf-entrypoint")]
+use pinocchio::entrypoint;
 
+#[cfg(feature = "bpf-entrypoint")]
+entrypoint!(process_instruction);
+
+pub const ID: Address = Address::new_from_array([0; 32]);
 pub const REPUTATION_SEED: &[u8] = b"rep";
+pub const DISCRIMINATOR_REPUTATION: u8 = 1;
+pub const ACCOUNT_VERSION: u8 = 1;
 pub const MAX_OUTCOMES: usize = 100;
-pub const MIN_SCORE: i16 = -100;
-pub const MAX_SCORE: i16 = 100;
 
-#[program]
-pub mod reputation_ledger {
-    use super::*;
+const IX_INITIALIZE_REPUTATION: u8 = 0;
+const IX_RECORD_OUTCOME: u8 = 1;
+const IX_RECORD_TIER_ACCURACY: u8 = 2;
+const IX_QUERY_SCORE: u8 = 3;
+const IX_EXPORT_CREDENTIAL: u8 = 4;
 
-    pub fn record_outcome(
-        ctx: Context<RecordOutcome>,
-        task: Pubkey,
-        success: bool,
-        score: u8,
-        tier_used: Tier,
-    ) -> Result<()> {
-        require!(score <= 100, ReputationLedgerError::InvalidScore);
+const HEADER_LEN: usize = 71;
+const OUTCOME_LEN: usize = 52;
+pub const REPUTATION_ACCOUNT_LEN: usize = HEADER_LEN + (MAX_OUTCOMES * OUTCOME_LEN);
 
-        let ledger = &mut ctx.accounts.reputation;
-        ledger.initialize_if_needed(ctx.accounts.agent.key(), ctx.bumps.reputation)?;
+const OFFSET_DISCRIMINATOR: usize = 0;
+const OFFSET_VERSION: usize = 1;
+const OFFSET_AGENT: usize = 2;
+const OFFSET_CURRENT_SCORE: usize = 34;
+const OFFSET_TOTAL_OUTCOMES: usize = 36;
+const OFFSET_SUCCESSFUL_OUTCOMES: usize = 44;
+const OFFSET_FAILED_OUTCOMES: usize = 48;
+const OFFSET_BUFFER_CURSOR: usize = 52;
+const OFFSET_ENTRY_COUNT: usize = 53;
+const OFFSET_TIER_CHECKS: usize = 54;
+const OFFSET_TIER_CORRECT: usize = 58;
+const OFFSET_TIER_RETRIES: usize = 62;
+const OFFSET_CREDENTIAL_EXPORTS: usize = 66;
+const OFFSET_BUMP: usize = 70;
+const OFFSET_OUTCOMES: usize = HEADER_LEN;
 
-        let entry = OutcomeEntry {
+pub fn process_instruction(
+    program_id: &Address,
+    accounts: &mut [AccountView],
+    instruction_data: &[u8],
+) -> ProgramResult {
+    let Some((instruction, data)) = instruction_data.split_first() else {
+        return Err(ProgramError::InvalidInstructionData);
+    };
+
+    match *instruction {
+        IX_INITIALIZE_REPUTATION => initialize_reputation(program_id, accounts, data),
+        IX_RECORD_OUTCOME => record_outcome(program_id, accounts, data),
+        IX_RECORD_TIER_ACCURACY => record_tier_accuracy(program_id, accounts, data),
+        IX_QUERY_SCORE => query_score(program_id, accounts),
+        IX_EXPORT_CREDENTIAL => export_credential(program_id, accounts),
+        _ => Err(ProgramError::InvalidInstructionData),
+    }
+}
+
+fn initialize_reputation(
+    program_id: &Address,
+    accounts: &mut [AccountView],
+    data: &[u8],
+) -> ProgramResult {
+    require_data_len(data, 1)?;
+    require_accounts_len(accounts, 3)?;
+
+    let payer = &accounts[0];
+    let agent = &accounts[1];
+    let mut reputation = accounts[2];
+    let bump = data[0];
+
+    require_signer(payer)?;
+    require_writable(&reputation)?;
+    validate_reputation_pda(program_id, agent, &reputation, bump)?;
+
+    // The account allocation/funding is intentionally left to the client or
+    // future ISSUE-02-07 helpers. Pinocchio keeps this program framework-light;
+    // this instruction initializes an already-created PDA account.
+    let mut account_data = reputation.try_borrow_mut()?;
+    require_account_len(&account_data, REPUTATION_ACCOUNT_LEN)?;
+    account_data.fill(0);
+    account_data[OFFSET_DISCRIMINATOR] = DISCRIMINATOR_REPUTATION;
+    account_data[OFFSET_VERSION] = ACCOUNT_VERSION;
+    account_data[OFFSET_AGENT..OFFSET_AGENT + 32].copy_from_slice(agent.address().as_ref());
+    write_u8(&mut account_data, OFFSET_BUMP, bump);
+
+    Ok(())
+}
+
+fn record_outcome(
+    program_id: &Address,
+    accounts: &mut [AccountView],
+    data: &[u8],
+) -> ProgramResult {
+    require_data_len(data, 36)?;
+    require_accounts_len(accounts, 3)?;
+
+    let authority = &accounts[0];
+    let agent = &accounts[1];
+    let mut reputation = accounts[2];
+
+    require_signer(authority)?;
+    require_writable(&reputation)?;
+    validate_reputation_account_address(program_id, agent, &reputation)?;
+
+    let task = read_pubkey(data, 0)?;
+    let success = read_bool(data, 32)?;
+    let score = read_i16(data, 33)?;
+    let tier_used = read_tier(data, 35)?;
+    if !(-100..=100).contains(&score) {
+        return Err(ReputationError::InvalidScore.into());
+    }
+
+    let clock = Clock::get()?;
+    let mut account_data = reputation.try_borrow_mut()?;
+    validate_reputation_account(&account_data, agent.address())?;
+
+    let entry_count = read_u8(&account_data, OFFSET_ENTRY_COUNT)? as usize;
+    if entry_count >= MAX_OUTCOMES {
+        return Err(ReputationError::OutcomeBufferFull.into());
+    }
+
+    let total_outcomes = read_u64(&account_data, OFFSET_TOTAL_OUTCOMES)?;
+    let outcome_offset = OFFSET_OUTCOMES + (entry_count * OUTCOME_LEN);
+    write_outcome(
+        &mut account_data,
+        outcome_offset,
+        OutcomeView {
+            sequence: total_outcomes,
             task,
-            score,
-            success,
-            tier_used,
-            recorded_at: Clock::get()?.unix_timestamp,
-            sequence: ledger.total_outcomes,
-        };
-
-        ledger.push_outcome(entry)?;
-        ledger.reputation_score = calculate_weighted_score(&ledger.outcomes);
-
-        emit!(OutcomeRecorded {
-            agent: ledger.agent,
-            task,
             success,
             score,
             tier_used,
-            reputation_score: ledger.reputation_score,
-            sequence: entry.sequence,
-        });
+            recorded_at: clock.unix_timestamp,
+        },
+    )?;
 
-        Ok(())
+    write_u8(&mut account_data, OFFSET_ENTRY_COUNT, (entry_count + 1) as u8);
+    write_u8(
+        &mut account_data,
+        OFFSET_BUFFER_CURSOR,
+        ((entry_count + 1) % MAX_OUTCOMES) as u8,
+    );
+    write_u64(&mut account_data, OFFSET_TOTAL_OUTCOMES, checked_inc_u64(total_outcomes)?)?;
+
+    if success {
+        let successes = read_u32(&account_data, OFFSET_SUCCESSFUL_OUTCOMES)?;
+        write_u32(&mut account_data, OFFSET_SUCCESSFUL_OUTCOMES, checked_inc_u32(successes)?)?;
+    } else {
+        let failures = read_u32(&account_data, OFFSET_FAILED_OUTCOMES)?;
+        write_u32(&mut account_data, OFFSET_FAILED_OUTCOMES, checked_inc_u32(failures)?)?;
     }
 
-    pub fn record_tier_accuracy(
-        ctx: Context<RecordTierAccuracy>,
-        predicted_tier: Tier,
-        actual_tier_needed: Tier,
-        retry_happened: bool,
-    ) -> Result<()> {
-        let ledger = &mut ctx.accounts.reputation;
-        ledger.initialize_if_needed(ctx.accounts.router_agent.key(), ctx.bumps.reputation)?;
+    let current_score = calculate_weighted_score_from_account(&account_data)?;
+    write_i16(&mut account_data, OFFSET_CURRENT_SCORE, current_score)?;
 
-        let was_accurate = predicted_tier == actual_tier_needed && !retry_happened;
-        ledger.total_tier_predictions = ledger.total_tier_predictions.saturating_add(1);
-        if was_accurate {
-            ledger.accurate_tier_predictions = ledger.accurate_tier_predictions.saturating_add(1);
-        }
+    Ok(())
+}
 
-        emit!(TierAccuracyRecorded {
-            router_agent: ledger.agent,
-            predicted_tier,
-            actual_tier_needed,
-            retry_happened,
-            was_accurate,
-            total_predictions: ledger.total_tier_predictions,
-            accurate_predictions: ledger.accurate_tier_predictions,
-        });
+fn record_tier_accuracy(
+    program_id: &Address,
+    accounts: &mut [AccountView],
+    data: &[u8],
+) -> ProgramResult {
+    require_data_len(data, 3)?;
+    require_accounts_len(accounts, 3)?;
 
-        Ok(())
+    let authority = &accounts[0];
+    let router_agent = &accounts[1];
+    let mut reputation = accounts[2];
+
+    require_signer(authority)?;
+    require_writable(&reputation)?;
+    validate_reputation_account_address(program_id, router_agent, &reputation)?;
+
+    let predicted_tier = read_tier(data, 0)?;
+    let actual_tier_needed = read_tier(data, 1)?;
+    let retry_happened = read_bool(data, 2)?;
+
+    let mut account_data = reputation.try_borrow_mut()?;
+    validate_reputation_account(&account_data, router_agent.address())?;
+
+    let tier_checks = read_u32(&account_data, OFFSET_TIER_CHECKS)?;
+    write_u32(&mut account_data, OFFSET_TIER_CHECKS, checked_inc_u32(tier_checks)?)?;
+
+    if predicted_tier == actual_tier_needed && !retry_happened {
+        let tier_correct = read_u32(&account_data, OFFSET_TIER_CORRECT)?;
+        write_u32(&mut account_data, OFFSET_TIER_CORRECT, checked_inc_u32(tier_correct)?)?;
     }
 
-    pub fn query_score(ctx: Context<QueryScore>) -> Result<i16> {
-        Ok(ctx.accounts.reputation.reputation_score)
+    if retry_happened {
+        let tier_retries = read_u32(&account_data, OFFSET_TIER_RETRIES)?;
+        write_u32(&mut account_data, OFFSET_TIER_RETRIES, checked_inc_u32(tier_retries)?)?;
     }
 
-    pub fn export_credential(ctx: Context<QueryScore>) -> Result<ReputationCredential> {
-        let ledger = &ctx.accounts.reputation;
+    Ok(())
+}
 
-        Ok(ReputationCredential {
-            agent: ledger.agent,
-            reputation_score: ledger.reputation_score,
-            total_outcomes: ledger.total_outcomes,
-            successful_outcomes: ledger.successful_outcomes,
-            total_tier_predictions: ledger.total_tier_predictions,
-            accurate_tier_predictions: ledger.accurate_tier_predictions,
-            exported_at: Clock::get()?.unix_timestamp,
-        })
+fn query_score(program_id: &Address, accounts: &mut [AccountView]) -> ProgramResult {
+    require_accounts_len(accounts, 2)?;
+    let agent = &accounts[0];
+    let reputation = &accounts[1];
+    validate_reputation_account_address(program_id, agent, reputation)?;
+
+    let account_data = reputation.try_borrow()?;
+    validate_reputation_account(&account_data, agent.address())?;
+
+    // Pinocchio has no Anchor-style return channel. The current score is kept in
+    // account data at OFFSET_CURRENT_SCORE for clients to read directly.
+    let _score = read_i16(&account_data, OFFSET_CURRENT_SCORE)?;
+    Ok(())
+}
+
+fn export_credential(program_id: &Address, accounts: &mut [AccountView]) -> ProgramResult {
+    require_accounts_len(accounts, 3)?;
+    let authority = &accounts[0];
+    let agent = &accounts[1];
+    let mut reputation = accounts[2];
+
+    require_signer(authority)?;
+    require_writable(&reputation)?;
+    validate_reputation_account_address(program_id, agent, &reputation)?;
+
+    let mut account_data = reputation.try_borrow_mut()?;
+    validate_reputation_account(&account_data, agent.address())?;
+    let exports = read_u32(&account_data, OFFSET_CREDENTIAL_EXPORTS)?;
+    write_u32(&mut account_data, OFFSET_CREDENTIAL_EXPORTS, checked_inc_u32(exports)?)?;
+
+    Ok(())
+}
+
+fn validate_reputation_account_address(
+    program_id: &Address,
+    agent: &AccountView,
+    reputation: &AccountView,
+) -> ProgramResult {
+    let data = reputation.try_borrow()?;
+    require_account_len(&data, REPUTATION_ACCOUNT_LEN)?;
+    let bump = read_u8(&data, OFFSET_BUMP)?;
+    drop(data);
+    validate_reputation_pda(program_id, agent, reputation, bump)
+}
+
+fn validate_reputation_pda(
+    program_id: &Address,
+    agent: &AccountView,
+    reputation: &AccountView,
+    bump: u8,
+) -> ProgramResult {
+    let expected = Address::derive_address(&[REPUTATION_SEED, agent.address().as_ref()], Some(bump), program_id);
+    if reputation.address() != &expected {
+        return Err(ProgramError::InvalidSeeds);
     }
+    Ok(())
 }
 
-#[derive(Accounts)]
-pub struct RecordOutcome<'info> {
-    #[account(
-        init_if_needed,
-        payer = payer,
-        space = ReputationAccount::SPACE,
-        seeds = [REPUTATION_SEED, agent.key().as_ref()],
-        bump
-    )]
-    pub reputation: Account<'info, ReputationAccount>,
-    /// CHECK: Agent identity can be any registered agent pubkey; registry validation is done by caller.
-    pub agent: UncheckedAccount<'info>,
-    #[account(mut)]
-    pub payer: Signer<'info>,
-    pub system_program: Program<'info, System>,
+fn validate_reputation_account(data: &[u8], agent: &Address) -> ProgramResult {
+    require_account_len(data, REPUTATION_ACCOUNT_LEN)?;
+    if data[OFFSET_DISCRIMINATOR] != DISCRIMINATOR_REPUTATION {
+        return Err(ProgramError::InvalidAccountData);
+    }
+    if data[OFFSET_VERSION] != ACCOUNT_VERSION {
+        return Err(ProgramError::InvalidAccountData);
+    }
+    if &data[OFFSET_AGENT..OFFSET_AGENT + 32] != agent.as_ref() {
+        return Err(ReputationError::AgentMismatch.into());
+    }
+    Ok(())
 }
 
-#[derive(Accounts)]
-pub struct RecordTierAccuracy<'info> {
-    #[account(
-        init_if_needed,
-        payer = payer,
-        space = ReputationAccount::SPACE,
-        seeds = [REPUTATION_SEED, router_agent.key().as_ref()],
-        bump
-    )]
-    pub reputation: Account<'info, ReputationAccount>,
-    /// CHECK: Router agent identity can be any registered agent pubkey; registry validation is done by caller.
-    pub router_agent: UncheckedAccount<'info>,
-    #[account(mut)]
-    pub payer: Signer<'info>,
-    pub system_program: Program<'info, System>,
-}
-
-#[derive(Accounts)]
-pub struct QueryScore<'info> {
-    #[account(seeds = [REPUTATION_SEED, reputation.agent.as_ref()], bump = reputation.bump)]
-    pub reputation: Account<'info, ReputationAccount>,
-}
-
-#[account]
-pub struct ReputationAccount {
-    pub agent: Pubkey,
-    pub reputation_score: i16,
-    pub total_outcomes: u32,
-    pub successful_outcomes: u32,
-    pub total_tier_predictions: u32,
-    pub accurate_tier_predictions: u32,
-    pub outcomes: Vec<OutcomeEntry>,
-    pub bump: u8,
-}
-
-impl ReputationAccount {
-    pub const SPACE: usize =
-        8 + 32 + 2 + 4 + 4 + 4 + 4 + 4 + (MAX_OUTCOMES * OutcomeEntry::SPACE) + 1;
-
-    pub fn initialize_if_needed(&mut self, agent: Pubkey, bump: u8) -> Result<()> {
-        if self.agent == Pubkey::default() {
-            self.agent = agent;
-            self.reputation_score = 0;
-            self.total_outcomes = 0;
-            self.successful_outcomes = 0;
-            self.total_tier_predictions = 0;
-            self.accurate_tier_predictions = 0;
-            self.outcomes = Vec::new();
-            self.bump = bump;
-        }
-
-        require_keys_eq!(self.agent, agent, ReputationLedgerError::AgentMismatch);
-
-        Ok(())
+pub fn calculate_weighted_score_from_account(data: &[u8]) -> Result<i16, ProgramError> {
+    let entry_count = read_u8(data, OFFSET_ENTRY_COUNT)? as usize;
+    if entry_count == 0 {
+        return Ok(0);
     }
 
-    pub fn push_outcome(&mut self, entry: OutcomeEntry) -> Result<()> {
-        if self.outcomes.len() == MAX_OUTCOMES {
-            self.outcomes.remove(0);
-        }
-
-        if entry.success {
-            self.successful_outcomes = self.successful_outcomes.saturating_add(1);
-        }
-        self.total_outcomes = self.total_outcomes.saturating_add(1);
-        self.outcomes.push(entry);
-
-        Ok(())
-    }
-}
-
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Debug, PartialEq, Eq)]
-pub struct OutcomeEntry {
-    pub task: Pubkey,
-    pub score: u8,
-    pub success: bool,
-    pub tier_used: Tier,
-    pub recorded_at: i64,
-    pub sequence: u32,
-}
-
-impl OutcomeEntry {
-    pub const SPACE: usize = 32 + 1 + 1 + 1 + 8 + 4;
-}
-
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Tier {
-    Simple,
-    Medium,
-    Complex,
-}
-
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Debug, PartialEq, Eq)]
-pub struct ReputationCredential {
-    pub agent: Pubkey,
-    pub reputation_score: i16,
-    pub total_outcomes: u32,
-    pub successful_outcomes: u32,
-    pub total_tier_predictions: u32,
-    pub accurate_tier_predictions: u32,
-    pub exported_at: i64,
-}
-
-#[event]
-pub struct OutcomeRecorded {
-    pub agent: Pubkey,
-    pub task: Pubkey,
-    pub success: bool,
-    pub score: u8,
-    pub tier_used: Tier,
-    pub reputation_score: i16,
-    pub sequence: u32,
-}
-
-#[event]
-pub struct TierAccuracyRecorded {
-    pub router_agent: Pubkey,
-    pub predicted_tier: Tier,
-    pub actual_tier_needed: Tier,
-    pub retry_happened: bool,
-    pub was_accurate: bool,
-    pub total_predictions: u32,
-    pub accurate_predictions: u32,
-}
-
-#[error_code]
-pub enum ReputationLedgerError {
-    #[msg("Scores must be between 0 and 100")]
-    InvalidScore,
-    #[msg("The reputation account does not belong to this agent")]
-    AgentMismatch,
-}
-
-fn calculate_weighted_score(outcomes: &[OutcomeEntry]) -> i16 {
-    if outcomes.is_empty() {
-        return 0;
-    }
-
-    let mut weighted_sum: i64 = 0;
+    let newest_sequence = read_outcome_sequence(data, entry_count - 1)?;
+    let recent_cutoff = newest_sequence.saturating_sub(50);
+    let mut weighted_total: i64 = 0;
     let mut weight_sum: i64 = 0;
 
-    for (index, outcome) in outcomes.iter().enumerate() {
-        let recency_weight = if index >= outcomes.len().saturating_sub(20) {
-            2
-        } else {
-            1
-        };
-        let signed_score = if outcome.success {
-            i64::from(outcome.score)
-        } else {
-            -i64::from(100_u8.saturating_sub(outcome.score))
-        };
-
-        weighted_sum += signed_score * recency_weight;
-        weight_sum += recency_weight;
+    for index in 0..entry_count {
+        let offset = OFFSET_OUTCOMES + (index * OUTCOME_LEN);
+        let sequence = read_u64(data, offset)?;
+        let success = read_bool(data, offset + 40)?;
+        let score = read_i16(data, offset + 41)?;
+        let weight = if sequence >= recent_cutoff { 2 } else { 1 };
+        let signed_score = if success { i64::from(score) } else { -i64::from(score.abs()) };
+        weighted_total += signed_score * weight;
+        weight_sum += weight;
     }
 
-    let raw_score = weighted_sum / weight_sum;
-    raw_score.clamp(i64::from(MIN_SCORE), i64::from(MAX_SCORE)) as i16
+    Ok((weighted_total / weight_sum).clamp(-100, 100) as i16)
+}
+
+fn read_outcome_sequence(data: &[u8], index: usize) -> Result<u64, ProgramError> {
+    read_u64(data, OFFSET_OUTCOMES + (index * OUTCOME_LEN))
+}
+
+struct OutcomeView {
+    sequence: u64,
+    task: [u8; 32],
+    success: bool,
+    score: i16,
+    tier_used: Tier,
+    recorded_at: i64,
+}
+
+fn write_outcome(data: &mut [u8], offset: usize, outcome: OutcomeView) -> ProgramResult {
+    write_u64(data, offset, outcome.sequence)?;
+    data[offset + 8..offset + 40].copy_from_slice(&outcome.task);
+    write_bool(data, offset + 40, outcome.success)?;
+    write_i16(data, offset + 41, outcome.score)?;
+    write_tier(data, offset + 43, outcome.tier_used)?;
+    write_i64(data, offset + 44, outcome.recorded_at)?;
+    Ok(())
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum Tier {
+    Simple = 0,
+    Medium = 1,
+    Complex = 2,
+}
+
+fn read_tier(data: &[u8], offset: usize) -> Result<Tier, ProgramError> {
+    let value = read_u8(data, offset)?;
+    match value {
+        0 => Ok(Tier::Simple),
+        1 => Ok(Tier::Medium),
+        2 => Ok(Tier::Complex),
+        _ => Err(ProgramError::InvalidInstructionData),
+    }
+}
+
+fn write_tier(data: &mut [u8], offset: usize, tier: Tier) -> ProgramResult {
+    write_u8(data, offset, tier as u8);
+    Ok(())
+}
+
+fn require_accounts_len(accounts: &[AccountView], len: usize) -> ProgramResult {
+    if accounts.len() < len {
+        return Err(ProgramError::NotEnoughAccountKeys);
+    }
+    Ok(())
+}
+
+fn require_data_len(data: &[u8], len: usize) -> ProgramResult {
+    if data.len() < len {
+        return Err(ProgramError::InvalidInstructionData);
+    }
+    Ok(())
+}
+
+fn require_account_len(data: &[u8], len: usize) -> ProgramResult {
+    if data.len() < len {
+        return Err(ProgramError::InvalidAccountData);
+    }
+    Ok(())
+}
+
+fn require_signer(account: &AccountView) -> ProgramResult {
+    if !account.is_signer() {
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+    Ok(())
+}
+
+fn require_writable(account: &AccountView) -> ProgramResult {
+    if !account.is_writable() {
+        return Err(ProgramError::InvalidAccountData);
+    }
+    Ok(())
+}
+
+fn checked_inc_u32(value: u32) -> Result<u32, ProgramError> {
+    value.checked_add(1).ok_or(ReputationError::ArithmeticOverflow.into())
+}
+
+fn checked_inc_u64(value: u64) -> Result<u64, ProgramError> {
+    value.checked_add(1).ok_or(ReputationError::ArithmeticOverflow.into())
+}
+
+fn read_pubkey(data: &[u8], offset: usize) -> Result<[u8; 32], ProgramError> {
+    require_data_len(data, offset + 32)?;
+    let mut bytes = [0_u8; 32];
+    bytes.copy_from_slice(&data[offset..offset + 32]);
+    Ok(bytes)
+}
+
+fn read_bool(data: &[u8], offset: usize) -> Result<bool, ProgramError> {
+    Ok(match read_u8(data, offset)? {
+        0 => false,
+        1 => true,
+        _ => return Err(ProgramError::InvalidInstructionData),
+    })
+}
+
+fn write_bool(data: &mut [u8], offset: usize, value: bool) -> ProgramResult {
+    write_u8(data, offset, u8::from(value));
+    Ok(())
+}
+
+fn read_u8(data: &[u8], offset: usize) -> Result<u8, ProgramError> {
+    require_data_len(data, offset + 1)?;
+    Ok(data[offset])
+}
+
+fn write_u8(data: &mut [u8], offset: usize, value: u8) {
+    data[offset] = value;
+}
+
+fn read_u32(data: &[u8], offset: usize) -> Result<u32, ProgramError> {
+    require_data_len(data, offset + 4)?;
+    Ok(u32::from_le_bytes(data[offset..offset + 4].try_into().map_err(|_| ProgramError::InvalidAccountData)?))
+}
+
+fn write_u32(data: &mut [u8], offset: usize, value: u32) -> ProgramResult {
+    require_account_len(data, offset + 4)?;
+    data[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
+    Ok(())
+}
+
+fn read_u64(data: &[u8], offset: usize) -> Result<u64, ProgramError> {
+    require_data_len(data, offset + 8)?;
+    Ok(u64::from_le_bytes(data[offset..offset + 8].try_into().map_err(|_| ProgramError::InvalidAccountData)?))
+}
+
+fn write_u64(data: &mut [u8], offset: usize, value: u64) -> ProgramResult {
+    require_account_len(data, offset + 8)?;
+    data[offset..offset + 8].copy_from_slice(&value.to_le_bytes());
+    Ok(())
+}
+
+fn read_i16(data: &[u8], offset: usize) -> Result<i16, ProgramError> {
+    require_data_len(data, offset + 2)?;
+    Ok(i16::from_le_bytes(data[offset..offset + 2].try_into().map_err(|_| ProgramError::InvalidAccountData)?))
+}
+
+fn write_i16(data: &mut [u8], offset: usize, value: i16) -> ProgramResult {
+    require_account_len(data, offset + 2)?;
+    data[offset..offset + 2].copy_from_slice(&value.to_le_bytes());
+    Ok(())
+}
+
+fn write_i64(data: &mut [u8], offset: usize, value: i64) -> ProgramResult {
+    require_account_len(data, offset + 8)?;
+    data[offset..offset + 8].copy_from_slice(&value.to_le_bytes());
+    Ok(())
+}
+
+#[repr(u32)]
+pub enum ReputationError {
+    InvalidScore = 6000,
+    AgentMismatch = 6001,
+    ArithmeticOverflow = 6002,
+    OutcomeBufferFull = 6003,
+}
+
+impl From<ReputationError> for ProgramError {
+    fn from(error: ReputationError) -> Self {
+        ProgramError::Custom(error as u32)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn outcome(sequence: u32, success: bool, score: u8) -> OutcomeEntry {
-        OutcomeEntry {
-            task: Pubkey::new_unique(),
-            score,
-            success,
-            tier_used: Tier::Simple,
-            recorded_at: i64::from(sequence),
-            sequence,
-        }
+    fn initialized_account() -> Vec<u8> {
+        let mut data = vec![0_u8; REPUTATION_ACCOUNT_LEN];
+        data[OFFSET_DISCRIMINATOR] = DISCRIMINATOR_REPUTATION;
+        data[OFFSET_VERSION] = ACCOUNT_VERSION;
+        data
     }
 
     #[test]
-    fn new_agent_score_is_zero() {
-        assert_eq!(calculate_weighted_score(&[]), 0);
-    }
-
-    #[test]
-    fn successful_outcomes_raise_score() {
-        let outcomes = vec![outcome(0, true, 80), outcome(1, true, 100)];
-        assert_eq!(calculate_weighted_score(&outcomes), 90);
-    }
-
-    #[test]
-    fn failed_outcomes_lower_score() {
-        let outcomes = vec![outcome(0, false, 20), outcome(1, false, 10)];
-        assert_eq!(calculate_weighted_score(&outcomes), -85);
-    }
-
-    #[test]
-    fn recent_outcomes_have_double_weight() {
-        let mut outcomes = Vec::new();
-        for sequence in 0..80 {
-            outcomes.push(outcome(sequence, false, 0));
-        }
-        for sequence in 80..100 {
-            outcomes.push(outcome(sequence, true, 100));
-        }
-
-        assert_eq!(calculate_weighted_score(&outcomes), -33);
-    }
-
-    #[test]
-    fn circular_buffer_keeps_latest_hundred_outcomes() {
-        let mut reputation = ReputationAccount {
-            agent: Pubkey::new_unique(),
-            reputation_score: 0,
-            total_outcomes: 0,
-            successful_outcomes: 0,
-            total_tier_predictions: 0,
-            accurate_tier_predictions: 0,
-            outcomes: Vec::new(),
-            bump: 255,
-        };
-
-        for sequence in 0..105 {
-            reputation
-                .push_outcome(outcome(sequence, true, 100))
-                .unwrap();
-        }
-
-        assert_eq!(reputation.outcomes.len(), MAX_OUTCOMES);
-        assert_eq!(reputation.outcomes.first().unwrap().sequence, 5);
-        assert_eq!(reputation.outcomes.last().unwrap().sequence, 104);
+    fn score_zero_for_new_agent() {
+        let data = initialized_account();
+        assert_eq!(calculate_weighted_score_from_account(&data).unwrap(), 0);
     }
 }
