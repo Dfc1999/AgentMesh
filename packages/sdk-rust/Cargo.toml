@@ -1,0 +1,10 @@
+[package]
+name = "agentmesh-sdk"
+version = "0.1.0"
+edition = "2021"
+description = "Rust CPI helper types for AgentMesh integrations."
+license = "MIT"
+
+[lib]
+name = "agentmesh_sdk"
+path = "src/lib.rs"

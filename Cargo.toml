@@ -5,6 +5,7 @@ members = [
     "programs/task-escrow",
     "programs/consensus",
     "programs/reputation-ledger",
+    "packages/sdk-rust",
 ]
 
 [workspace.dependencies]

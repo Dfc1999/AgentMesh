@@ -24,6 +24,7 @@
     "eval:orchestrator": "tsx scripts/eval-orchestrator.ts",
     "eval:workers": "tsx scripts/eval-workers.ts",
     "eval:x402": "tsx scripts/eval-x402.ts",
+    "eval:sdk": "tsx scripts/eval-sdk.ts",
     "test": "turbo run test",
     "prepare": "husky"
   },
